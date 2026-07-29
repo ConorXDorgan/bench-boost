@@ -1,0 +1,400 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------
+   Accenture-inspired design tokens (CSS variables only).
+   Components reference these directly via Tailwind arbitrary values
+   like `text-[color:var(--acn-purple)]` or `bg-[var(--acn-purple)]`,
+   so we don't rely on theme-generated utility names.
+---------------------------------------------------------------- */
+
+:root {
+  /* Brand */
+  --acn-purple: #a100ff;
+  --acn-purple-600: #8a00d8;
+  --acn-purple-700: #7500c0;
+  --acn-purple-50: #f4e8ff;
+  --acn-purple-100: #ead0ff;
+
+  /* Surfaces */
+  --acn-black: #000000;
+  --acn-ink: #0a0a0a;
+  --acn-ink-2: #1a1a1a;
+  --acn-ink-3: #2d2d2d;
+  --acn-mute: #6b6b6b;
+  --acn-line: #e5e5e5;
+  --acn-line-2: #ededed;
+  --acn-bg: #fafafa;
+  --acn-bg-2: #f5f5f5;
+
+  /* Status */
+  --acn-success: #00b5a0;
+  --acn-success-50: #d6f5f0;
+  --acn-warn: #f39800;
+  --acn-warn-50: #fff1d6;
+  --acn-neutral: #8c8c95;
+  --acn-neutral-50: #ececef;
+}
+
+@theme inline {
+  --font-sans: var(--font-graphik), "Graphik", "Graphik Web", "Inter",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+html,
+body {
+  background: var(--acn-bg);
+  color: var(--acn-ink);
+}
+
+body {
+  font-family: var(--font-graphik), "Graphik", "Graphik Web", "Inter",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+}
+
+/* The Accenture purple "›" mark used as a brand accent */
+.acn-mark {
+  display: inline-block;
+  color: var(--acn-purple);
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+
+/* Accent rule under section headings */
+.acn-rule {
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+.acn-rule::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 28px;
+  background: var(--acn-purple);
+}
+
+/* Subtle scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--acn-line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--acn-line);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--acn-purple-100);
+}
+
+/* Brand focus ring */
+:where(input, select, textarea, button):focus-visible {
+  outline: 2px solid var(--acn-purple);
+  outline-offset: 2px;
+}
+
+/* Stat-card number animation */
+@keyframes acnFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.acn-fade-up {
+  animation: acnFadeUp 0.35s ease-out both;
+}
+
+/* Brand gradient used for avatars and the drawer top strip */
+.acn-gradient-purple {
+  background-image: linear-gradient(
+    135deg,
+    var(--acn-purple) 0%,
+    var(--acn-purple-700) 100%
+  );
+}
+
+/* ---------- Resource detail dialog ----------
+   Native <dialog> styling for ResourceDetailDialog. The browser renders
+   the dialog in the top layer when showModal() is called, so positioning
+   is centred against the viewport regardless of any transformed ancestors.
+
+   Open/close animations are driven by transitions + @starting-style +
+   `transition-behavior: allow-discrete` so we don't need any JS timers. */
+
+.acn-dialog {
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+
+  /* Centre the dialog in the viewport regardless of content size.
+     `position: fixed; inset: 0; margin: auto` is the classic recipe — the
+     content shrink-wraps because of `width/height: fit-content`, and the
+     equal margins on all sides centre it both horizontally and vertically.
+     We have to set these explicitly because Tailwind's preflight (and our
+     own `max-*: none` overrides above) wipe out the UA defaults. */
+  position: fixed;
+  inset: 0;
+  width: fit-content;
+  height: fit-content;
+  max-width: 100vw;
+  max-height: 100vh;
+  margin: auto;
+
+  /* Closed state — also the "to" state for the exit transition. */
+  opacity: 0;
+  transform: scale(0.97) translateY(8px);
+  transition:
+    opacity 220ms ease-out,
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+
+.acn-dialog[open] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+@starting-style {
+  .acn-dialog[open] {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+}
+
+.acn-dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0);
+  transition:
+    background-color 220ms ease-out,
+    backdrop-filter 220ms ease-out,
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+
+.acn-dialog[open]::backdrop {
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+@starting-style {
+  .acn-dialog[open]::backdrop {
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0);
+  }
+}
+
+/* ---------- AI loader: drawn Accenture chevron ----------
+   A 3-layer "comet" trail of strokes that draw in, hold, then sweep
+   off-screen, leaving the wordmark to scale-pulse beneath. */
+
+@keyframes acnLogoDraw {
+  0% {
+    stroke-dashoffset: 130;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  45% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  95% {
+    stroke-dashoffset: -130;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: -130;
+    opacity: 0;
+  }
+}
+.acn-logo-stroke {
+  stroke-dasharray: 130;
+  stroke-dashoffset: 130;
+  animation: acnLogoDraw 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+.acn-logo-stroke-2 {
+  animation-delay: 0.22s;
+}
+.acn-logo-stroke-3 {
+  animation-delay: 0.44s;
+}
+
+@keyframes acnLogoPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+.acn-logo-pulse {
+  animation: acnLogoPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes acnLogoReveal {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.6;
+  }
+  35% {
+    opacity: 1;
+  }
+  60% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+.acn-logo-wordmark {
+  animation: acnLogoReveal 2.4s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes acnLogoUnderline {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0.4;
+  }
+  60% {
+    transform: scaleX(1);
+    transform-origin: left center;
+    opacity: 1;
+  }
+  61% {
+    transform-origin: right center;
+  }
+  100% {
+    transform: scaleX(0);
+    transform-origin: right center;
+    opacity: 0.4;
+  }
+}
+.acn-logo-underline {
+  animation: acnLogoUnderline 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes acnLogoDot {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.acn-logo-dot {
+  animation: acnLogoDot 1.2s ease-in-out infinite;
+}
+.acn-logo-dot-2 {
+  animation-delay: 0.2s;
+}
+.acn-logo-dot-3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes acnStatusSwap {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15%,
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.acn-status-swap {
+  animation: acnStatusSwap 2.6s ease-in-out both;
+}
+
+/* ---------- Typewriter cursor ----------
+   Blinking purple caret used by <TypewriterTitle> on the AI hero. */
+
+@keyframes acnCursorBlink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+.acn-typewriter-cursor {
+  display: inline-block;
+  width: 0.06em;
+  height: 0.85em;
+  margin-left: 0.06em;
+  vertical-align: -0.05em;
+  background: var(--acn-purple);
+  border-radius: 1px;
+  animation: acnCursorBlink 1s steps(1) infinite;
+}
+
+/* ---------- Route transition ----------
+   Animates the page content when the user navigates between top-nav
+   destinations. Combined with the persistent TopNav in the root layout,
+   this gives a smooth swap rather than a hard repaint.
+
+   IMPORTANT: this wrapper must NOT apply a `transform` (or `filter`,
+   `perspective`, `contain`) at any point in the animation lifecycle.
+   Any non-`none` transform on an ancestor turns it into the containing
+   block for `position: fixed` descendants, which breaks the resource
+   drawer's `fixed inset-0` (it ends up anchored to the page height
+   instead of the viewport, leaving the modal off-screen). Opacity is
+   safe; keep it opacity-only. */
+
+@keyframes acnRouteIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.acn-route-in {
+  animation: acnRouteIn 320ms ease-out both;
+}
+
+/* Honour reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .acn-fade-up,
+  .acn-logo-stroke,
+  .acn-logo-pulse,
+  .acn-logo-wordmark,
+  .acn-logo-underline,
+  .acn-logo-dot,
+  .acn-status-swap,
+  .acn-route-in,
+  .acn-typewriter-cursor {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+  }
+  .acn-dialog,
+  .acn-dialog::backdrop {
+    transition-duration: 0.001ms !important;
+  }
+}

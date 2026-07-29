@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "PowerShell(Get-Command node, npm, python, python3 -ErrorAction SilentlyContinue)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "PowerShell(npm *)",
+      "PowerShell(npx *)",
+      "PowerShell(node *)",
+      "PowerShell(Set-Location *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Move-Item *)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(where.exe *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Add-Type *)",
+      "PowerShell([Environment]* *)",
+      "PowerShell([System.IO.Compression* *)",
+      "Bash(ls *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "PowerShell(\"---\")",
+      "Read(//c/Users/CONOR~1.DOR/AppData/Local/Temp/claude/c--Users-conor-dorgan-OneDrive---Accenture-Bench-Tool/aee607dc-c8f2-4489-b5ae-620526797ea3/tasks/**)",
+      "Bash(break)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

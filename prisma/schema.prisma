@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String
+  passwordHash      String
+  emailVerified     Boolean   @default(false)
+  verificationToken String?   @unique
+  createdAt         DateTime  @default(now())
+
+  @@index([email])
+}
+
+model Snapshot {
+  id           String     @id @default(cuid())
+  snapshotDate DateTime
+  ingestedAt   DateTime   @default(now())
+  source       String
+  resources    Resource[]
+
+  @@index([snapshotDate])
+}
+
+model Resource {
+  id         String   @id @default(cuid())
+  snapshotId String
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  eid             String
+  fullName        String
+  email           String?
+  personnelNumber String?
+  managementLevel String?
+  jobFamily       String?
+  jobFamilyGroup  String?
+  orgUnitL4       String?
+  location        String?
+  country         String?
+  metroCity       String?
+
+  bucket             String
+  unknown            Boolean   @default(false)
+  firstStaffableDate DateTime?
+  weeksOut           Int?
+  allocationPct      Int?
+
+  staffableStatus         String?
+  staffableDetailedStatus String?
+  firstStaffableCategory  String?
+  availableTimeFlag       String?
+
+  currentClient       String?
+  currentProject      String?
+  currentProjectStart DateTime?
+  currentProjectEnd   DateTime?
+  rollOffConfirmed    String?
+  currentComments     String?
+
+  skills                      String?
+  specializationsEarned       String?
+  specializationsBuilding     String?
+  specializationsAspirational String?
+  languages                   String?
+  certifications              String?
+
+  workdayUrl String?
+  cvUrl      String?
+
+  rawJson String
+
+  @@index([snapshotId, bucket])
+  @@index([eid])
+}
