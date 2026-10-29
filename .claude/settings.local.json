@@ -36,7 +36,8 @@
       "PowerShell(\"---\")",
       "Read(//c/Users/CONOR~1.DOR/AppData/Local/Temp/claude/c--Users-conor-dorgan-OneDrive---Accenture-Bench-Tool/aee607dc-c8f2-4489-b5ae-620526797ea3/tasks/**)",
       "Bash(break)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git fetch *)"
     ]
   }
 }

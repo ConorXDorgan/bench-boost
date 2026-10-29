@@ -246,7 +246,7 @@ export default function Dashboard({ snapshot }: Props) {
       },
       {
         accessorKey: "currentProjectEnd",
-        header: "Roll-off",
+        header: "Available From",
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-neutral-700">
             {fmtShortDate(row.original.currentProjectEnd)}
