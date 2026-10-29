@@ -16,8 +16,6 @@ export const REQUIRED_COLUMNS = [
   "Resource Enterprise ID",
 ] as const;
 
-export type RequiredColumn = (typeof REQUIRED_COLUMNS)[number];
-
 /**
  * Logical field → ordered list of possible column header names. The parser
  * tries each alias in order and falls back to `null` if none are present.

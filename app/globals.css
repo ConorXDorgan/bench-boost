@@ -10,19 +10,13 @@
 :root {
   /* Brand */
   --acn-purple: #a100ff;
-  --acn-purple-600: #8a00d8;
   --acn-purple-700: #7500c0;
   --acn-purple-50: #f4e8ff;
   --acn-purple-100: #ead0ff;
 
   /* Surfaces */
-  --acn-black: #000000;
   --acn-ink: #0a0a0a;
-  --acn-ink-2: #1a1a1a;
-  --acn-ink-3: #2d2d2d;
-  --acn-mute: #6b6b6b;
   --acn-line: #e5e5e5;
-  --acn-line-2: #ededed;
   --acn-bg: #fafafa;
   --acn-bg-2: #f5f5f5;
 
@@ -54,14 +48,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.005em;
-}
-
-/* The Accenture purple "›" mark used as a brand accent */
-.acn-mark {
-  display: inline-block;
-  color: var(--acn-purple);
-  font-weight: 700;
-  transform: translateY(-1px);
 }
 
 /* Accent rule under section headings */

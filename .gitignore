@@ -40,9 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/app/generated/prisma
-
-# Prisma — generated client + local SQLite
+# Prisma generated client
 /lib/generated/
-/dev.db
-/dev.db-journal

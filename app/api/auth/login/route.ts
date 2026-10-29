@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword, signToken, COOKIE_NAME } from "@/lib/auth";
+import { verifyPassword, signToken } from "@/lib/auth";
+import { COOKIE_NAME } from "@/lib/authToken";
 
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email: String(email ?? "").trim().toLowerCase() } });
   if (!user) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
-  }
-
-  if (!user.emailVerified) {
-    return NextResponse.json({ error: "Please verify your email before logging in." }, { status: 403 });
   }
 
   const valid = await verifyPassword(password, user.passwordHash);

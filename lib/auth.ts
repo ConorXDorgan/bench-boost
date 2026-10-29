@@ -1,15 +1,9 @@
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+import { COOKIE_NAME, getSecret } from "@/lib/authToken";
 
-const COOKIE_NAME = "bench-session";
 const SALT_ROUNDS = 12;
-
-function getSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) throw new Error("AUTH_SECRET is not set");
-  return new TextEncoder().encode(secret);
-}
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, SALT_ROUNDS);
@@ -19,7 +13,7 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return bcrypt.compare(plain, hash);
 }
 
-export interface SessionPayload {
+interface SessionPayload {
   userId: string;
   email: string;
   name: string;
@@ -33,7 +27,7 @@ export async function signToken(payload: SessionPayload): Promise<string> {
     .sign(getSecret());
 }
 
-export async function verifyToken(token: string): Promise<SessionPayload | null> {
+async function verifyToken(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret());
     return payload as unknown as SessionPayload;
@@ -48,5 +42,3 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   return verifyToken(token);
 }
-
-export { COOKIE_NAME };

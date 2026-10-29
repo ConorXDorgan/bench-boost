@@ -1,23 +1,16 @@
-import { prisma } from "@/lib/db";
 import AIAssistant from "@/components/AIAssistant";
-
-export const dynamic = "force-dynamic";
+import { loadLatestSnapshot } from "@/lib/snapshotLoader";
 
 export default async function AIPage() {
-  const snapshot = await prisma.snapshot.findFirst({
-    orderBy: { snapshotDate: "desc" },
-    include: {
-      resources: {
-        where: { bucket: { in: ["available", "coming"] } },
-        select: { id: true },
-      },
-    },
-  });
+  const snapshot = await loadLatestSnapshot();
+  const benchSize = snapshot
+    ? snapshot.resources.filter((r) => r.bucket === "available" || r.bucket === "coming").length
+    : 0;
 
   return (
     <AIAssistant
-      snapshotDate={snapshot ? snapshot.snapshotDate.toISOString().slice(0, 10) : null}
-      benchSize={snapshot?.resources.length ?? 0}
+      snapshotDate={snapshot ? snapshot.snapshotDate.slice(0, 10) : null}
+      benchSize={benchSize}
     />
   );
 }

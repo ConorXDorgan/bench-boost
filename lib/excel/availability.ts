@@ -1,13 +1,13 @@
 export type Bucket = "available" | "coming" | "not_available";
 
-export interface AvailabilityInput {
+interface AvailabilityInput {
   staffableStatus: string | null;
   staffableDetailedStatus: string | null;
   firstStaffableCategory: string | null;
   firstStaffableDate: Date | null;
 }
 
-export interface AvailabilityResult {
+interface AvailabilityResult {
   bucket: Bucket;
   firstStaffableDate: Date | null;
   weeksOut: number | null;

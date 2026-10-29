@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Spinner from "@/components/Spinner";
 
 interface UploadResult {
   ok?: boolean;
@@ -15,14 +16,16 @@ interface UploadResult {
 export default function UploadButton() {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  const pending = uploading || refreshing;
   const [feedback, setFeedback] = useState<UploadResult | null>(null);
 
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    setPending(true);
+    setUploading(true);
     setFeedback(null);
     try {
       const formData = new FormData();
@@ -30,11 +33,11 @@ export default function UploadButton() {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const body: UploadResult = await res.json();
       setFeedback(body);
-      if (res.ok) router.refresh();
+      if (res.ok) startRefresh(() => router.refresh());
     } catch (err) {
       setFeedback({ error: err instanceof Error ? err.message : "Upload failed" });
     } finally {
-      setPending(false);
+      setUploading(false);
     }
   }
 
@@ -48,28 +51,8 @@ export default function UploadButton() {
       >
         {pending ? (
           <>
-            <svg
-              className="h-3.5 w-3.5 animate-spin"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="9"
-                stroke="currentColor"
-                strokeOpacity="0.3"
-                strokeWidth="3"
-              />
-              <path
-                d="M21 12a9 9 0 0 0-9-9"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-            </svg>
-            Uploading…
+            <Spinner label={uploading ? "Uploading" : "Refreshing dashboard"} />
+            {uploading ? "Uploading…" : "Refreshing dashboard…"}
           </>
         ) : (
           <>

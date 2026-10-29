@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { COOKIE_NAME, getSecret } from "@/lib/authToken";
 
 const PUBLIC_PATHS = ["/auth/", "/api/auth/"];
-
-function getSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) throw new Error("AUTH_SECRET is not set");
-  return new TextEncoder().encode(secret);
-}
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -20,7 +15,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("bench-session")?.value;
+  const token = req.cookies.get(COOKIE_NAME)?.value;
   if (token) {
     try {
       await jwtVerify(token, getSecret());

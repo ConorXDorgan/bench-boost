@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   flexRender,
   getCoreRowModel,
@@ -9,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import type { ResourceDto, SnapshotDto } from "@/lib/resourceDto";
+import type { ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
 import {
   BUCKET_DOT,
   BUCKET_LABEL,
@@ -17,6 +18,7 @@ import {
   BUCKET_PILL_UNKNOWN,
   LEVEL_PILL_BY_NUM,
   LEVEL_PILL_DEFAULT,
+  type BucketFilter,
   fmtDate,
   fmtShortDate,
   fmtText,
@@ -28,11 +30,29 @@ import {
 import { parseSkillString, sortSkillsByLevel } from "@/lib/skills";
 import UploadButton from "@/components/UploadButton";
 import Avatar from "@/components/Avatar";
-import Charts from "@/components/Charts";
 import MultiSelect from "@/components/MultiSelect";
 import ResourceDetailDialog from "@/components/ResourceDetailDialog";
 
-type BucketFilter = "all" | "available" | "coming" | "not_available";
+const Charts = dynamic(() => import("@/components/Charts"), {
+  ssr: false,
+  loading: () => <ChartsSkeleton />,
+});
+
+function ChartsSkeleton() {
+  return (
+    <section
+      aria-hidden="true"
+      className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2"
+    >
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="h-[330px] animate-pulse rounded-xl border border-neutral-200 bg-white"
+        />
+      ))}
+    </section>
+  );
+}
 
 interface Props {
   snapshot: SnapshotDto;
@@ -44,12 +64,16 @@ export default function Dashboard({ snapshot }: Props) {
   const [jobFamilyFilter, setJobFamilyFilter] = useState<string[]>([]);
   const [orgUnitFilter, setOrgUnitFilter] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<ResourceDto | null>(null);
+  const [selected, setSelected] = useState<ResourceListDto | null>(null);
   const [showCharts, setShowCharts] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "bucket", desc: false },
     { id: "fullName", desc: false },
   ]);
+
+  const deferredSearch = useDeferredValue(search);
+  const deferredBucket = useDeferredValue(bucketFilter);
+  const deferredLevel = useDeferredValue(levelFilter);
 
   const allCounts = useMemo(() => {
     return snapshot.resources.reduce(
@@ -57,7 +81,7 @@ export default function Dashboard({ snapshot }: Props) {
         acc[r.bucket]++;
         return acc;
       },
-      { available: 0, coming: 0, not_available: 0 } as Record<ResourceDto["bucket"], number>,
+      { available: 0, coming: 0, not_available: 0 } as Record<ResourceListDto["bucket"], number>,
     );
   }, [snapshot.resources]);
 
@@ -80,15 +104,15 @@ export default function Dashboard({ snapshot }: Props) {
    * the other active filters (bucket, search, job family, org unit).
    */
   const filteredIgnoringLevel = useMemo(() => {
-    const needle = search.trim().toLowerCase();
+    const needle = deferredSearch.trim().toLowerCase();
     return snapshot.resources.filter((r) => {
-      if (bucketFilter !== "all" && r.bucket !== bucketFilter) return false;
+      if (deferredBucket !== "all" && r.bucket !== deferredBucket) return false;
       if (jobFamilyFilter.length > 0 && !jobFamilyFilter.includes(r.jobFamily ?? "")) return false;
       if (orgUnitFilter.length > 0 && !orgUnitFilter.includes(r.orgUnitL4 ?? "")) return false;
       if (needle && !r.fullName.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [snapshot.resources, bucketFilter, jobFamilyFilter, orgUnitFilter, search]);
+  }, [snapshot.resources, deferredBucket, jobFamilyFilter, orgUnitFilter, deferredSearch]);
 
   /**
    * Distinct management levels in the snapshot with their CURRENT counts
@@ -126,9 +150,9 @@ export default function Dashboard({ snapshot }: Props) {
   }, [snapshot.resources, filteredIgnoringLevel]);
 
   const filtered = useMemo(() => {
-    if (levelFilter === "all") return filteredIgnoringLevel;
-    return filteredIgnoringLevel.filter((r) => r.managementLevel === levelFilter);
-  }, [filteredIgnoringLevel, levelFilter]);
+    if (deferredLevel === "all") return filteredIgnoringLevel;
+    return filteredIgnoringLevel.filter((r) => r.managementLevel === deferredLevel);
+  }, [filteredIgnoringLevel, deferredLevel]);
 
   const activeFilterCount =
     (bucketFilter !== "all" ? 1 : 0) +
@@ -145,7 +169,7 @@ export default function Dashboard({ snapshot }: Props) {
     setSearch("");
   };
 
-  const columns = useMemo<ColumnDef<ResourceDto>[]>(
+  const columns = useMemo<ColumnDef<ResourceListDto>[]>(
     () => [
       {
         accessorKey: "fullName",
@@ -497,17 +521,11 @@ export default function Dashboard({ snapshot }: Props) {
                     onClick={() => setSelected(row.original)}
                     className="group cursor-pointer transition-colors duration-200 ease-out hover:bg-[color:var(--acn-purple-50)]/50"
                   >
-                    {row.getVisibleCells().map((cell) => {
-                      const numeric = (cell.column.columnDef.meta as { numeric?: boolean } | undefined)?.numeric;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={`px-4 py-3 text-neutral-700 ${numeric ? "text-right tabular-nums" : ""}`}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      );
-                    })}
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3 text-neutral-700">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
                   </tr>
                 ))}
                 {table.getRowModel().rows.length === 0 && (
@@ -659,12 +677,12 @@ function LevelPill({ raw }: { raw: string | null }) {
  * proficiency so the Master/Expert/Advanced entries surface first, and
  * shows a small "+N more" indicator when truncated.
  */
-function KeySkillsCell({ raw, limit = 3 }: { raw: string | null; limit?: number }) {
+function KeySkillsCell({ raw }: { raw: string | null }) {
   const skills = sortSkillsByLevel(parseSkillString(raw));
   if (skills.length === 0) {
     return <span className="text-neutral-400">—</span>;
   }
-  const top = skills.slice(0, limit);
+  const top = skills.slice(0, 3);
   const overflow = skills.length - top.length;
   return (
     <div className="flex flex-wrap gap-1">
@@ -712,8 +730,8 @@ function EmptyState({ onClear, hasFilters }: { onClear: () => void; hasFilters: 
   );
 }
 
-function downloadCsv(rows: ResourceDto[], snapshotDate: string) {
-  const cols: Array<{ key: keyof ResourceDto; header: string }> = [
+function downloadCsv(rows: ResourceListDto[], snapshotDate: string) {
+  const cols: Array<{ key: keyof ResourceListDto; header: string }> = [
     { key: "fullName", header: "Name" },
     { key: "eid", header: "EID" },
     { key: "managementLevel", header: "Management Level" },
@@ -727,11 +745,8 @@ function downloadCsv(rows: ResourceDto[], snapshotDate: string) {
     { key: "firstStaffableDate", header: "First Staffable Date" },
     { key: "weeksOut", header: "Weeks Out" },
     { key: "allocationPct", header: "Allocation %" },
-    { key: "currentClient", header: "Current Client" },
     { key: "currentProject", header: "Current Project" },
-    { key: "currentProjectStart", header: "Project Start" },
     { key: "currentProjectEnd", header: "Project End" },
-    { key: "rollOffConfirmed", header: "Roll-off Confirmed" },
     { key: "skills", header: "Skills" },
   ];
   const escape = (v: unknown) => {

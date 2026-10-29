@@ -1,4 +1,4 @@
-import type { ResourceDto } from "@/lib/resourceDto";
+import type { FullResourceDto } from "@/lib/snapshotLoader";
 import { parseSkillString } from "@/lib/skills";
 
 /**
@@ -17,7 +17,7 @@ const MAX_SKILLS_PER_RESOURCE = 25;
 /** Only keep high-signal proficiency levels — those that actually drive staffing decisions. */
 const KEEP_LEVELS = new Set(["Master", "Expert", "Advanced"]);
 
-export const BENCH_COLUMNS = [
+const BENCH_COLUMNS = [
   "eid",
   "name",
   "lvl",
@@ -57,11 +57,9 @@ export interface BenchContext {
   table: string;
   /** Number of resources included. */
   size: number;
-  /** Rough character count (≈ 4 chars per token) for budgeting. */
-  approxChars: number;
 }
 
-export function buildBenchContext(resources: ResourceDto[]): BenchContext {
+export function buildBenchContext(resources: FullResourceDto[]): BenchContext {
   const lines: string[] = [BENCH_COLUMNS.join(COL_SEP)];
 
   for (const r of resources) {
@@ -92,7 +90,6 @@ export function buildBenchContext(resources: ResourceDto[]): BenchContext {
   return {
     table,
     size: lines.length - 1,
-    approxChars: table.length,
   };
 }
 
