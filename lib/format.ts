@@ -1,3 +1,7 @@
+import type { Bucket } from "@/lib/excel/availability";
+
+export type BucketFilter = "all" | Bucket;
+
 export function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return "—";
   const date = d instanceof Date ? d : new Date(d);

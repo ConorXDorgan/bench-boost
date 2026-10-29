@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import Link, { useLinkStatus } from "next/link";
+import { usePathname } from "next/navigation";
+import Spinner from "@/components/Spinner";
 
 const NAV_ITEMS = [
   { href: "/", label: "Bench", match: (p: string) => p === "/" },
@@ -11,15 +13,24 @@ const NAV_ITEMS = [
 
 export default function TopNav({ userName }: { userName?: string }) {
   const pathname = usePathname() ?? "/";
-  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const activeIndex = Math.max(
     0,
     NAV_ITEMS.findIndex((item) => item.match(pathname)),
   );
 
   async function handleSignOut() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/auth/login");
+    setSignOutError(null);
+    setSigningOut(true);
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (!res.ok) throw new Error(String(res.status));
+      window.location.assign("/auth/login");
+    } catch {
+      setSignOutError("Couldn't sign out. Try again.");
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -55,11 +66,24 @@ export default function TopNav({ userName }: { userName?: string }) {
           {userName && (
             <span className="hidden text-xs text-white/50 sm:inline">{userName}</span>
           )}
+          {signOutError && (
+            <span role="alert" className="text-xs text-rose-300">
+              {signOutError}
+            </span>
+          )}
           <button
             onClick={handleSignOut}
-            className="text-sm text-white/50 hover:text-white transition-colors"
+            disabled={signingOut}
+            className="inline-flex items-center gap-1.5 text-sm text-white/50 transition-colors hover:text-white disabled:cursor-not-allowed disabled:text-white/70"
           >
-            Sign out
+            {signingOut ? (
+              <>
+                <Spinner label="Signing out" />
+                Signing out…
+              </>
+            ) : (
+              "Sign out"
+            )}
           </button>
         </div>
       </div>
@@ -85,6 +109,17 @@ function PillLink({
       }`}
     >
       {children}
+      <NavPending />
     </Link>
+  );
+}
+
+function NavPending() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span className="absolute right-2.5">
+      <Spinner className="h-3 w-3" label="Loading page" />
+    </span>
   );
 }

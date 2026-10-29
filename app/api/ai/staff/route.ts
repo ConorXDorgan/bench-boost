@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { loadFullSnapshot } from "@/lib/snapshotLoader";
 import { chatCompletion, OpenRouterError } from "@/lib/ai/openrouter";
 import { buildBenchContext } from "@/lib/ai/resourceContext";
 import { buildSystemPrompt, type StaffingResponse } from "@/lib/ai/prompt";
-import type { ResourceDto } from "@/lib/resourceDto";
 
 // Generous limit so an uploaded job-spec / proposal can fit. The
 // MAX_TEXT_CHARS cap in /api/ai/extract-file is set to the same value.
@@ -31,51 +30,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const snapshot = await prisma.snapshot.findFirst({
-    orderBy: { snapshotDate: "desc" },
-    include: { resources: true },
-  });
+  const snapshot = await loadFullSnapshot();
   if (!snapshot) {
     return NextResponse.json(
       { error: "No bench snapshot loaded yet. Seed or upload a workbook first." },
       { status: 400 },
     );
   }
-
-  const resources: ResourceDto[] = snapshot.resources.map((r) => ({
-    id: r.id,
-    eid: r.eid,
-    fullName: r.fullName,
-    email: r.email,
-    managementLevel: r.managementLevel,
-    jobFamily: r.jobFamily,
-    jobFamilyGroup: r.jobFamilyGroup,
-    orgUnitL4: r.orgUnitL4,
-    location: r.location,
-    country: r.country,
-    metroCity: r.metroCity,
-    bucket: r.bucket as ResourceDto["bucket"],
-    unknown: r.unknown,
-    firstStaffableDate: r.firstStaffableDate ? r.firstStaffableDate.toISOString() : null,
-    weeksOut: r.weeksOut,
-    allocationPct: r.allocationPct,
-    staffableStatus: r.staffableStatus,
-    firstStaffableCategory: r.firstStaffableCategory,
-    currentClient: r.currentClient,
-    currentProject: r.currentProject,
-    currentProjectStart: r.currentProjectStart ? r.currentProjectStart.toISOString() : null,
-    currentProjectEnd: r.currentProjectEnd ? r.currentProjectEnd.toISOString() : null,
-    rollOffConfirmed: r.rollOffConfirmed,
-    currentComments: r.currentComments,
-    skills: r.skills,
-    specializationsEarned: r.specializationsEarned,
-    specializationsBuilding: r.specializationsBuilding,
-    specializationsAspirational: r.specializationsAspirational,
-    languages: r.languages,
-    certifications: r.certifications,
-    workdayUrl: r.workdayUrl,
-    cvUrl: r.cvUrl,
-  }));
+  const resources = snapshot.resources;
 
   const bench = buildBenchContext(resources);
   if (bench.size === 0) {
@@ -88,7 +50,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const system = buildSystemPrompt(bench, snapshot.snapshotDate.toISOString().slice(0, 10));
+  const system = buildSystemPrompt(bench, snapshot.snapshotDate.slice(0, 10));
 
   let raw: string;
   try {
@@ -97,7 +59,6 @@ export async function POST(req: Request) {
         { role: "system", content: system },
         { role: "user", content: brief },
       ],
-      // No responseFormat — see note in lib/ai/openrouter.ts.
       { temperature: 0.2, maxTokens: 4000 },
     );
   } catch (err) {
@@ -134,7 +95,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    snapshotDate: snapshot.snapshotDate.toISOString().slice(0, 10),
+    snapshotDate: snapshot.snapshotDate.slice(0, 10),
     benchSize: bench.size,
     data: enriched,
   });

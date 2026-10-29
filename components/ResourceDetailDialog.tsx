@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import Spinner from "@/components/Spinner";
 import { SkillBubbles, SkillLegend } from "@/components/SkillBubbles";
 import {
   BUCKET_DOT,
@@ -11,11 +12,11 @@ import {
   fmtDate,
   fmtText,
 } from "@/lib/format";
-import type { ResourceDto } from "@/lib/resourceDto";
+import type { ResourceDetailDto, ResourceListDto } from "@/lib/resourceDto";
 
 interface Props {
   /** The currently-selected resource, or null when the dialog should be closed. */
-  resource: ResourceDto | null;
+  resource: ResourceListDto | null;
   /** Called whenever the dialog closes — Esc, backdrop click, or X button. */
   onClose: () => void;
 }
@@ -37,7 +38,11 @@ export default function ResourceDetailDialog({ resource, onClose }: Props) {
   // Keep the most-recent non-null resource cached so the modal contents
   // stay visible during the close transition (resource prop will be null
   // by then). We only ever write to this; we never clear it.
-  const [shownResource, setShownResource] = useState<ResourceDto | null>(resource);
+  const [shownResource, setShownResource] = useState<ResourceListDto | null>(resource);
+  const [details, setDetails] = useState<Record<string, ResourceDetailDto>>({});
+  const [failedId, setFailedId] = useState<string | null>(null);
+
+  if (resource && resource !== shownResource) setShownResource(resource);
 
   // Sync the native dialog's open state with the `resource` prop.
   useEffect(() => {
@@ -45,12 +50,34 @@ export default function ResourceDetailDialog({ resource, onClose }: Props) {
     if (!dialog) return;
 
     if (resource) {
-      setShownResource(resource);
       if (!dialog.open) dialog.showModal();
     } else if (dialog.open) {
       dialog.close();
     }
   }, [resource]);
+
+  // Detail-only fields (email, specializations, client, ...) are not part of
+  // the list payload; fetch them when a resource is opened.
+  const resourceId = resource?.id ?? null;
+  const haveDetail = resourceId != null && resourceId in details;
+  useEffect(() => {
+    if (!resourceId || haveDetail) return;
+    const controller = new AbortController();
+    fetch(`/api/resources/${encodeURIComponent(resourceId)}`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json() as Promise<ResourceDetailDto>;
+      })
+      .then((data) => {
+        setFailedId(null);
+        setDetails((prev) => ({ ...prev, [resourceId]: data }));
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setFailedId(resourceId);
+      });
+    return () => controller.abort();
+  }, [resourceId, haveDetail]);
 
   // Wire native close events (Esc, dialog.close(), etc.) back to the parent.
   useEffect(() => {
@@ -80,6 +107,8 @@ export default function ResourceDetailDialog({ resource, onClose }: Props) {
       {shownResource && (
         <DialogContent
           resource={shownResource}
+          detail={details[shownResource.id] ?? null}
+          failed={failedId === shownResource.id}
           onClose={() => dialogRef.current?.close()}
         />
       )}
@@ -91,9 +120,13 @@ export default function ResourceDetailDialog({ resource, onClose }: Props) {
 
 function DialogContent({
   resource,
+  detail,
+  failed,
   onClose,
 }: {
-  resource: ResourceDto;
+  resource: ResourceListDto;
+  detail: ResourceDetailDto | null;
+  failed: boolean;
   onClose: () => void;
 }) {
   const pillCls = resource.unknown
@@ -146,35 +179,38 @@ function DialogContent({
                   emptyMessage="No skills recorded."
                 />
               </div>
-              <SubList
-                label="Earned specializations"
-                items={resource.specializationsEarned}
-              />
-              <SubList
-                label="Building specializations"
-                items={resource.specializationsBuilding}
-              />
-              <SubList
-                label="Aspirational specializations"
-                items={resource.specializationsAspirational}
-              />
-              <SubList label="Languages" items={resource.languages} />
-              <SubList label="Certifications" items={resource.certifications} />
+              {detail ? (
+                <>
+                  <SubList label="Earned specializations" items={detail.specializationsEarned} />
+                  <SubList label="Building specializations" items={detail.specializationsBuilding} />
+                  <SubList
+                    label="Aspirational specializations"
+                    items={detail.specializationsAspirational}
+                  />
+                  <SubList label="Languages" items={detail.languages} />
+                  <SubList label="Certifications" items={detail.certifications} />
+                </>
+              ) : (
+                <DetailPlaceholder failed={failed} />
+              )}
             </Section>
 
             <Section title="Current project" className="lg:col-span-2">
               <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                <KV label="Client" value={resource.currentClient} />
+                <KV label="Client" value={detail ? detail.currentClient : "…"} />
                 <KV label="Project" value={resource.currentProject} />
-                <KV label="Start" value={fmtDate(resource.currentProjectStart)} />
+                <KV
+                  label="Start"
+                  value={detail ? fmtDate(detail.currentProjectStart) : "…"}
+                />
                 <KV label="End" value={fmtDate(resource.currentProjectEnd)} />
                 <KV
                   label="Roll-off confirmed"
-                  value={resource.rollOffConfirmed}
+                  value={detail ? detail.rollOffConfirmed : "…"}
                 />
-                {resource.currentComments && (
+                {detail?.currentComments && (
                   <p className="mt-3 whitespace-pre-line rounded-md border-l-2 border-[color:var(--acn-purple)] bg-white p-2.5 text-xs text-neutral-700">
-                    {resource.currentComments}
+                    {detail.currentComments}
                   </p>
                 )}
               </div>
@@ -182,7 +218,7 @@ function DialogContent({
           </div>
 
           <Section title="Links">
-            <LinksRow resource={resource} />
+            <LinksRow detail={detail} failed={failed} />
           </Section>
         </div>
       </div>
@@ -196,7 +232,7 @@ function StatusRow({
   resource,
   pillClass,
 }: {
-  resource: ResourceDto;
+  resource: ResourceListDto;
   pillClass: string;
 }) {
   return (
@@ -218,7 +254,23 @@ function StatusRow({
   );
 }
 
-function LinksRow({ resource }: { resource: ResourceDto }) {
+function DetailPlaceholder({ failed }: { failed: boolean }) {
+  if (failed) {
+    return (
+      <p className="mt-4 text-xs text-rose-700">Couldn&apos;t load the full profile. Close and reopen to retry.</p>
+    );
+  }
+  return (
+    <p className="mt-4 inline-flex items-center gap-2 text-xs text-neutral-500">
+      <Spinner label="Loading profile" />
+      Loading profile…
+    </p>
+  );
+}
+
+function LinksRow({ detail, failed }: { detail: ResourceDetailDto | null; failed: boolean }) {
+  if (!detail) return <DetailPlaceholder failed={failed} />;
+  const resource = detail;
   return (
     <div className="flex flex-wrap items-center gap-3">
       {resource.workdayUrl ? (

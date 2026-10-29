@@ -13,22 +13,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ResourceDto } from "@/lib/resourceDto";
+import { BUCKET_LABEL, parseManagementLevel } from "@/lib/format";
+import type { ResourceListDto } from "@/lib/resourceDto";
 
-const BUCKET_COLOR: Record<ResourceDto["bucket"], string> = {
+const BUCKET_COLOR: Record<ResourceListDto["bucket"], string> = {
   available: "#00b5a0",
   coming: "#f39800",
   not_available: "#8c8c95",
 };
 
-const BUCKET_LABEL: Record<ResourceDto["bucket"], string> = {
-  available: "Available",
-  coming: "Coming",
-  not_available: "Not Available",
-};
-
 interface ChartsProps {
-  resources: ResourceDto[];
+  resources: ResourceListDto[];
 }
 
 const TOOLTIP_STYLE: React.CSSProperties = {
@@ -236,7 +231,7 @@ function ChartCard({
   );
 }
 
-function buildTimelineBins(resources: ResourceDto[]) {
+function buildTimelineBins(resources: ResourceListDto[]) {
   const bins: Array<{ label: string; from: number; to: number; color: string; count: number }> = [
     { label: "Now (≤0 wks)", from: -Infinity, to: 0, color: "#00b5a0", count: 0 },
     { label: "1–2 wks", from: 1, to: 2, color: "#26c2af", count: 0 },
@@ -268,7 +263,7 @@ function buildTimelineBins(resources: ResourceDto[]) {
  * the top of the y-axis), keeping "Accenture Leadership" above the
  * numbered ranks since it represents the most-senior tier.
  */
-function buildLevelBreakdown(resources: ResourceDto[]) {
+function buildLevelBreakdown(resources: ResourceListDto[]) {
   type Row = {
     name: string;
     order: number;
@@ -282,8 +277,7 @@ function buildLevelBreakdown(resources: ResourceDto[]) {
     if (r.bucket !== "available" && r.bucket !== "coming") continue;
     const raw = r.managementLevel?.trim();
     const name = raw && raw.length > 0 ? raw : "(Unknown)";
-    const match = raw?.match(/^(\d+)/);
-    const order = match ? parseInt(match[1], 10) : raw === "(Unknown)" ? 99 : -1;
+    const order = raw ? (parseManagementLevel(raw).num ?? -1) : 99;
     const cur =
       counts.get(name) ?? { name, order, available: 0, coming: 0, total: 0 };
     if (r.bucket === "available") cur.available++;

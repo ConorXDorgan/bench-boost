@@ -47,14 +47,9 @@ function dotForLevel(lvl: SkillLevel): string {
 interface SkillBubblesProps {
   raw: string | null | undefined;
   emptyMessage?: string;
-  showLevelInLabel?: boolean;
 }
 
-export function SkillBubbles({
-  raw,
-  emptyMessage = "—",
-  showLevelInLabel = false,
-}: SkillBubblesProps) {
+export function SkillBubbles({ raw, emptyMessage = "—" }: SkillBubblesProps) {
   const skills = sortSkillsByLevel(parseSkillString(raw));
   if (skills.length === 0) {
     return <span className="text-neutral-400">{emptyMessage}</span>;
@@ -70,11 +65,6 @@ export function SkillBubbles({
             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset ${cls}`}
           >
             <span className="truncate max-w-[18rem]">{s.name}</span>
-            {showLevelInLabel && s.level && (
-              <span className="ml-1 text-[10px] uppercase tracking-wide opacity-70">
-                {s.level}
-              </span>
-            )}
           </li>
         );
       })}

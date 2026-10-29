@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
 import ResourceDetailDialog from "@/components/ResourceDetailDialog";
@@ -11,15 +11,16 @@ import {
   BUCKET_PILL_UNKNOWN,
   fmtDate,
   fmtText,
+  parseManagementLevel,
+  type BucketFilter,
 } from "@/lib/format";
-import type { ResourceDto, SnapshotDto } from "@/lib/resourceDto";
+import type { ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
 import {
   SKILL_LEVEL_RANK,
   parseSkillString,
   type SkillLevel,
 } from "@/lib/skills";
 
-type BucketFilter = "all" | "available" | "coming" | "not_available";
 type MatchMode = "all" | "any";
 type MinLevel = "any" | SkillLevel;
 
@@ -52,7 +53,11 @@ export default function SkillsSearch({ snapshot }: Props) {
   const [matchMode, setMatchMode] = useState<MatchMode>("all");
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>("all");
   const [employeeLevels, setEmployeeLevels] = useState<string[]>([]);
-  const [selected, setSelected] = useState<ResourceDto | null>(null);
+  const [selected, setSelected] = useState<ResourceListDto | null>(null);
+
+  const deferredSkillQuery = useDeferredValue(skillQuery);
+  const deferredSelectedSkills = useDeferredValue(selectedSkills);
+  const deferredBucket = useDeferredValue(bucketFilter);
 
   const minRank = MIN_LEVEL_OPTIONS.find((o) => o.value === minLevel)?.rank ?? 0;
 
@@ -68,11 +73,11 @@ export default function SkillsSearch({ snapshot }: Props) {
       if (raw) set.add(raw);
     }
     return [...set].sort((a, b) => {
-      const ma = a.match(/^(\d+)/);
-      const mb = b.match(/^(\d+)/);
-      if (ma && mb) return parseInt(ma[1], 10) - parseInt(mb[1], 10);
-      if (ma) return 1; // numbered values come after unnumbered ("Accenture Leadership")
-      if (mb) return -1;
+      const na = parseManagementLevel(a).num;
+      const nb = parseManagementLevel(b).num;
+      if (na != null && nb != null) return na - nb;
+      if (na != null) return 1; // numbered values come after unnumbered ("Accenture Leadership")
+      if (nb != null) return -1;
       return a.localeCompare(b);
     });
   }, [snapshot.resources]);
@@ -112,12 +117,12 @@ export default function SkillsSearch({ snapshot }: Props) {
    * keep the DOM light; when searching, show every match.
    */
   const skillCatalog = useMemo(() => {
-    const q = skillQuery.trim().toLowerCase();
+    const q = deferredSkillQuery.trim().toLowerCase();
     const all = [...skillCounts.entries()]
       .filter(([name]) => (q ? name.toLowerCase().includes(q) : true))
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     return q ? all : all.slice(0, 60);
-  }, [skillCounts, skillQuery]);
+  }, [skillCounts, deferredSkillQuery]);
 
   const totalSkillCount = skillCounts.size;
 
@@ -125,20 +130,20 @@ export default function SkillsSearch({ snapshot }: Props) {
   const matchedResources = useMemo(() => {
     const levelSet = new Set(employeeLevels);
     return snapshot.resources.filter((r) => {
-      if (bucketFilter !== "all" && r.bucket !== bucketFilter) return false;
+      if (deferredBucket !== "all" && r.bucket !== deferredBucket) return false;
       if (levelSet.size > 0 && !levelSet.has(r.managementLevel ?? "")) return false;
-      if (selectedSkills.length === 0) return false;
+      if (deferredSelectedSkills.length === 0) return false;
       const skills = resourceSkillIndex.get(r.id) ?? new Set<string>();
       if (matchMode === "all") {
-        return selectedSkills.every((s) => skills.has(s));
+        return deferredSelectedSkills.every((s) => skills.has(s));
       }
-      return selectedSkills.some((s) => skills.has(s));
+      return deferredSelectedSkills.some((s) => skills.has(s));
     });
   }, [
     snapshot.resources,
-    bucketFilter,
+    deferredBucket,
     employeeLevels,
-    selectedSkills,
+    deferredSelectedSkills,
     matchMode,
     resourceSkillIndex,
   ]);
@@ -378,9 +383,9 @@ function PeopleResults({
   employeeLevels: string[];
   employeeLevelOptions: string[];
   onEmployeeLevelsChange: (next: string[]) => void;
-  matchedResources: ResourceDto[];
+  matchedResources: ResourceListDto[];
   totalResourceCount: number;
-  onSelectResource: (r: ResourceDto) => void;
+  onSelectResource: (r: ResourceListDto) => void;
 }) {
   return (
     <section className={className ?? ""}>
@@ -517,8 +522,8 @@ function ResultTable({
   resources,
   onSelectResource,
 }: {
-  resources: ResourceDto[];
-  onSelectResource: (r: ResourceDto) => void;
+  resources: ResourceListDto[];
+  onSelectResource: (r: ResourceListDto) => void;
 }) {
   return (
     <div className="overflow-x-auto">

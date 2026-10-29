@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 type Phase = "typing" | "highlight" | "done";
 
@@ -27,6 +27,14 @@ interface Props {
  * copy underneath the animated layer so the parent always sees the final
  * dimensions. Respects `prefers-reduced-motion`.
  */
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void) {
+  const mq = window.matchMedia(REDUCED_MOTION_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
 export default function TypewriterTitle({
   text,
   highlight = "",
@@ -36,21 +44,18 @@ export default function TypewriterTitle({
   className = "",
   highlightClassName = "",
 }: Props) {
-  const [phase, setPhase] = useState<Phase>("typing");
-  const [charsShown, setCharsShown] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [animPhase, setPhase] = useState<Phase>("typing");
+  const [animChars, setCharsShown] = useState(0);
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+    () => false,
+  );
+  const phase: Phase = reducedMotion ? "done" : animPhase;
+  const charsShown = reducedMotion ? text.length : animChars;
 
-  // Pick up the user's reduced-motion preference once on mount.
   useEffect(() => {
-    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setCharsShown(text.length);
-      setPhase("done");
-      return;
-    }
+    if (reducedMotion) return;
 
     if (phase === "typing") {
       if (charsShown < text.length) {

@@ -6,15 +6,14 @@
  * AZURE_OPENAI_ENDPOINT is set; otherwise requests go to OpenRouter.
  */
 
-export interface ChatMessage {
+interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export interface ChatOptions {
+interface ChatOptions {
   model?: string;
   temperature?: number;
-  responseFormat?: "json_object" | "text";
   maxTokens?: number;
 }
 

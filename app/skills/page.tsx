@@ -1,8 +1,6 @@
 import SkillsSearch from "@/components/SkillsSearch";
 import { loadLatestSnapshot } from "@/lib/snapshotLoader";
 
-export const dynamic = "force-dynamic";
-
 export default async function SkillsPage() {
   const snapshot = await loadLatestSnapshot();
 

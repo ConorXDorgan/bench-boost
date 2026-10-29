@@ -1,8 +1,6 @@
 import Dashboard from "@/components/Dashboard";
 import { loadLatestSnapshot } from "@/lib/snapshotLoader";
 
-export const dynamic = "force-dynamic";
-
 export default async function Page() {
   const snapshot = await loadLatestSnapshot();
 

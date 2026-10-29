@@ -26,18 +26,10 @@ export const SKILL_LEVEL_PILL: Record<SkillLevel, string> = {
   Beginner: "bg-[color:var(--acn-neutral-50)] text-[#3f3f46] ring-[color:var(--acn-neutral)]/30",
 };
 
-export const SKILL_LEVEL_FILL: Record<SkillLevel, string> = {
-  Master: "#a100ff",
-  Expert: "#00b5a0",
-  Advanced: "#0ea5e9",
-  Intermediate: "#f39800",
-  Beginner: "#8c8c95",
-};
-
 export const NEUTRAL_PILL =
   "bg-[color:var(--acn-bg-2)] text-neutral-700 ring-[color:var(--acn-line)]";
 
-export interface ParsedSkill {
+interface ParsedSkill {
   name: string;
   level: SkillLevel | null;
 }

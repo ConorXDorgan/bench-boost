@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import AccentureLogoLoader from "@/components/AccentureLogoLoader";
+import Avatar from "@/components/Avatar";
+import Spinner from "@/components/Spinner";
 import TypewriterTitle from "@/components/TypewriterTitle";
 import type { StaffingResponse } from "@/lib/ai/prompt";
 
@@ -437,19 +439,11 @@ function CandidateCard({
   candidate: StaffingResponse["candidates"][number];
 }) {
   const score = Math.max(0, Math.min(100, candidate.fitScore || 0));
-  const initials = candidate.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
   return (
     <article className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:shadow-[0_8px_24px_rgba(161,0,255,0.06)]">
       <div className="flex flex-wrap items-start justify-between gap-4 p-5">
         <div className="flex items-start gap-3">
-          <span className="acn-gradient-purple inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm">
-            {initials || "·"}
-          </span>
+          <Avatar name={candidate.name} size="md" />
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
               #{index}
@@ -592,7 +586,7 @@ function FileUploadButton({
       >
         {extracting ? (
           <>
-            <Spinner />
+            <Spinner className="h-3 w-3" label="Extracting" />
             Extracting…
           </>
         ) : (
@@ -651,32 +645,6 @@ function FileIcon() {
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <path d="M14 2v6h6" />
       <path d="M8 13h8M8 17h8M8 9h2" />
-    </svg>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg
-      className="h-3 w-3 animate-spin"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeOpacity="0.25"
-        strokeWidth="3"
-      />
-      <path
-        d="M21 12a9 9 0 0 0-9-9"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
     </svg>
   );
 }

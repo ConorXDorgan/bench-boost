@@ -5,7 +5,7 @@ import { FIELD_ALIASES, REQUIRED_COLUMNS, type FieldKey } from "@/lib/excel/colu
 
 const SNAPSHOT_RETENTION = 10;
 
-export interface IngestSummary {
+interface IngestSummary {
   snapshotId: string;
   snapshotDate: Date;
   resourceCount: number;
@@ -237,7 +237,7 @@ export async function parseWorkbook(buffer: ArrayBuffer | Buffer): Promise<Parse
 
 export async function ingestExcelBuffer(
   buffer: ArrayBuffer | Buffer,
-  source: "manual" | "s3" | "seed",
+  source: "manual" | "seed",
 ): Promise<IngestSummary> {
   const { snapshotDate, rows } = await parseWorkbook(buffer);
 
