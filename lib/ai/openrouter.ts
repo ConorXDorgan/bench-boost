@@ -1,9 +1,9 @@
 /**
- * Minimal OpenRouter REST client.
+ * Minimal chat-completions client for Azure OpenAI or OpenRouter.
  *
- * OpenRouter exposes an OpenAI-compatible /chat/completions endpoint, so we
- * only need a thin wrapper around fetch. Auth + attribution headers are
- * applied from environment variables.
+ * Both expose an OpenAI-compatible /chat/completions endpoint, so we only
+ * need a thin wrapper around fetch. Azure OpenAI is used when
+ * AZURE_OPENAI_ENDPOINT is set; otherwise requests go to OpenRouter.
  */
 
 export interface ChatMessage {
@@ -52,50 +52,28 @@ export async function chatCompletion(
   messages: ChatMessage[],
   opts: ChatOptions = {},
 ): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new OpenRouterError(
-      "OPENROUTER_API_KEY is not set. Add it to your .env file before using the AI assistant.",
-    );
-  }
-
-  const model = opts.model ?? process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL;
-  const siteUrl = process.env.OPENROUTER_SITE_URL ?? "http://localhost:3000";
-  const siteName = process.env.OPENROUTER_SITE_NAME ?? "Bench Tool";
-
-  const body: Record<string, unknown> = {
-    model,
-    messages,
-    temperature: opts.temperature ?? 0.2,
-  };
-  if (opts.maxTokens != null) body.max_tokens = opts.maxTokens;
-  // NOTE: We deliberately do NOT send `response_format: json_object` here.
-  // Not every model on OpenRouter honours it, and some return empty content
-  // when it's set. We ask for JSON in the prompt and strip code fences when
-  // parsing instead.
+  const request = process.env.AZURE_OPENAI_ENDPOINT
+    ? azureRequest(process.env.AZURE_OPENAI_ENDPOINT, messages, opts)
+    : openRouterRequest(messages, opts);
+  const { provider, model } = request;
 
   let res: Response;
   try {
-    res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    res = await fetch(request.url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": siteUrl,
-        "X-Title": siteName,
-      },
-      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json", ...request.headers },
+      body: JSON.stringify(request.body),
     });
   } catch (err) {
     throw new OpenRouterError(
-      `Failed to reach OpenRouter: ${err instanceof Error ? err.message : String(err)}`,
+      `Failed to reach ${provider}: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
   const rawText = await res.text();
   if (!res.ok) {
     throw new OpenRouterError(
-      `OpenRouter returned ${res.status}: ${rawText.slice(0, 500) || res.statusText}`,
+      `${provider} returned ${res.status}: ${rawText.slice(0, 500) || res.statusText}`,
       res.status,
     );
   }
@@ -105,13 +83,13 @@ export async function chatCompletion(
     data = JSON.parse(rawText) as OpenRouterResponse;
   } catch {
     throw new OpenRouterError(
-      `OpenRouter returned non-JSON response: ${rawText.slice(0, 300)}`,
+      `${provider} returned non-JSON response: ${rawText.slice(0, 300)}`,
     );
   }
 
   // Some failure modes surface as 200 OK with a body-level error field.
   if (data.error?.message) {
-    throw new OpenRouterError(`OpenRouter error: ${data.error.message}`, undefined);
+    throw new OpenRouterError(`${provider} error: ${data.error.message}`, undefined);
   }
 
   const choice = data.choices?.[0];
@@ -144,11 +122,71 @@ export async function chatCompletion(
       );
     }
     if (choice?.error?.message) {
-      throw new OpenRouterError(`OpenRouter error: ${choice.error.message}`);
+      throw new OpenRouterError(`${provider} error: ${choice.error.message}`);
     }
     throw new OpenRouterError(
-      `OpenRouter returned an empty response from "${model}". Check that the model id is correct and supports chat completions; you can override OPENROUTER_MODEL in your .env file.`,
+      `${provider} returned an empty response from "${model}". Check that the model id is correct and supports chat completions.`,
     );
   }
   return content;
+}
+
+interface ProviderRequest {
+  provider: string;
+  model: string;
+  url: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+}
+
+function azureRequest(endpoint: string, messages: ChatMessage[], opts: ChatOptions): ProviderRequest {
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const model = opts.model ?? process.env.AZURE_OPENAI_DEPLOYMENT;
+  if (!apiKey || !model) {
+    throw new OpenRouterError(
+      "AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT must be set when AZURE_OPENAI_ENDPOINT is.",
+    );
+  }
+  // GPT-5-family deployments are reasoning models: they reject temperature and
+  // max_tokens, and reasoning tokens count against max_completion_tokens.
+  const body: Record<string, unknown> = { model, messages, reasoning_effort: "low" };
+  if (opts.maxTokens != null) body.max_completion_tokens = opts.maxTokens;
+  return {
+    provider: "Azure OpenAI",
+    model,
+    url: new URL("openai/v1/chat/completions", endpoint.endsWith("/") ? endpoint : `${endpoint}/`).toString(),
+    headers: { "api-key": apiKey },
+    body,
+  };
+}
+
+function openRouterRequest(messages: ChatMessage[], opts: ChatOptions): ProviderRequest {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new OpenRouterError(
+      "OPENROUTER_API_KEY is not set. Add it to your .env file before using the AI assistant.",
+    );
+  }
+  const model = opts.model ?? process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL;
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: opts.temperature ?? 0.2,
+  };
+  if (opts.maxTokens != null) body.max_tokens = opts.maxTokens;
+  // NOTE: We deliberately do NOT send `response_format: json_object` here.
+  // Not every model on OpenRouter honours it, and some return empty content
+  // when it's set. We ask for JSON in the prompt and strip code fences when
+  // parsing instead.
+  return {
+    provider: "OpenRouter",
+    model,
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "http://localhost:3000",
+      "X-Title": process.env.OPENROUTER_SITE_NAME ?? "Bench Tool",
+    },
+    body,
+  };
 }
