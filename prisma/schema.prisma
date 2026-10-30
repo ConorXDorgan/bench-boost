@@ -19,6 +19,14 @@ model User {
   @@index([email])
 }
 
+model ViewerAccess {
+  id           Int      @id @default(1)
+  passwordHash String?
+  version      Int      @default(0)
+  updatedAt    DateTime @updatedAt
+  updatedBy    String?
+}
+
 model Snapshot {
   id           String     @id @default(cuid())
   snapshotDate DateTime

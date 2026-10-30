@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAdminSession } from "@/lib/auth";
 import { loadFullSnapshot } from "@/lib/snapshotLoader";
 import { chatCompletion, OpenRouterError } from "@/lib/ai/openrouter";
 import { buildBenchContext } from "@/lib/ai/resourceContext";
@@ -9,6 +10,10 @@ import { buildSystemPrompt, type StaffingResponse } from "@/lib/ai/prompt";
 const MAX_BRIEF_CHARS = 50_000;
 
 export async function POST(req: Request) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "Admins only" }, { status: 403 });
+  }
+
   let body: { brief?: string };
   try {
     body = await req.json();

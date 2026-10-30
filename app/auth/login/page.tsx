@@ -3,22 +3,34 @@
 import { useState, FormEvent } from "react";
 import Spinner from "@/components/Spinner";
 
+type Mode = "admin" | "viewer";
+
+const inputCls =
+  "w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-[color:var(--acn-purple)] focus:outline-none";
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<Mode>("viewer");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setPassword("");
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(mode === "admin" ? "/api/auth/login" : "/api/auth/viewer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(mode === "admin" ? { email, password } : { password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -39,30 +51,59 @@ export default function LoginPage() {
       <div className="relative w-full max-w-sm overflow-hidden rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-semibold mb-6">Sign in to Bench Tool</h1>
 
+        <div
+          role="tablist"
+          aria-label="Sign-in type"
+          className="mb-6 grid grid-cols-2 overflow-hidden rounded-full border border-neutral-200 bg-neutral-50 text-sm font-medium"
+        >
+          {(["viewer", "admin"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => switchMode(m)}
+              className={`py-1.5 transition ${
+                mode === m ? "bg-[color:var(--acn-purple)] text-white" : "text-neutral-700 hover:text-black"
+              }`}
+            >
+              {m === "viewer" ? "Viewer" : "Admin"}
+            </button>
+          ))}
+        </div>
+
         {error && (
           <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "admin" && (
+            <div>
+              <label htmlFor="email" className="mb-1 block text-sm font-medium">
+                Accenture email
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls}
+                placeholder="jane.smith@accenture.com"
+              />
+            </div>
+          )}
           <div>
-            <label className="mb-1 block text-sm font-medium">Accenture email</label>
+            <label htmlFor="password" className="mb-1 block text-sm font-medium">
+              {mode === "admin" ? "Password" : "Viewer password"}
+            </label>
             <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-[color:var(--acn-purple)] focus:outline-none"
-              placeholder="jane.smith@accenture.com"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Password</label>
-            <input
+              id="password"
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-[color:var(--acn-purple)] focus:outline-none"
+              className={inputCls}
             />
           </div>
           <button
