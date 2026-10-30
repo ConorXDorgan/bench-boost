@@ -25,6 +25,7 @@ function row(id: string) {
     managementLevel: "8-Manager",
     jobFamily: "Eng",
     jobFamilyGroup: "Tech",
+    orgUnitL3: "Digital Core",
     orgUnitL4: "Cloud",
     location: "Dublin",
     country: "IE",
