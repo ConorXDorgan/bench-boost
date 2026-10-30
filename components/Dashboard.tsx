@@ -59,9 +59,10 @@ function ChartsSkeleton() {
 
 interface Props {
   snapshot: SnapshotDto;
+  isAdmin: boolean;
 }
 
-export default function Dashboard({ snapshot }: Props) {
+export default function Dashboard({ snapshot, isAdmin }: Props) {
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>([...BUCKETS]);
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [jobFamilyFilter, setJobFamilyFilter] = useState<string[]>([]);
@@ -310,7 +311,7 @@ export default function Dashboard({ snapshot }: Props) {
               Export CSV
               <span aria-hidden="true">↓</span>
             </button>
-            <UploadButton />
+            {isAdmin && <UploadButton />}
           </div>
         </section>
 

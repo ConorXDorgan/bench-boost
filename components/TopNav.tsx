@@ -6,18 +6,26 @@ import { usePathname } from "next/navigation";
 import Spinner from "@/components/Spinner";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Bench", match: (p: string) => p === "/" },
-  { href: "/skills", label: "Skills", match: (p: string) => p.startsWith("/skills") },
-  { href: "/ai", label: "AI Assistant", match: (p: string) => p.startsWith("/ai") },
+  { href: "/", label: "Bench", match: (p: string) => p === "/", adminOnly: false },
+  { href: "/skills", label: "Skills", match: (p: string) => p.startsWith("/skills"), adminOnly: false },
+  { href: "/ai", label: "AI Assistant", match: (p: string) => p.startsWith("/ai"), adminOnly: true },
+  { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin"), adminOnly: true },
 ] as const;
 
-export default function TopNav({ userName }: { userName?: string }) {
+export default function TopNav({
+  userName,
+  isAdmin,
+}: {
+  userName?: string;
+  isAdmin: boolean;
+}) {
   const pathname = usePathname() ?? "/";
+  const items = NAV_ITEMS.filter((item) => isAdmin || !item.adminOnly);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const activeIndex = Math.max(
     0,
-    NAV_ITEMS.findIndex((item) => item.match(pathname)),
+    items.findIndex((item) => item.match(pathname)),
   );
 
   async function handleSignOut() {
@@ -55,7 +63,7 @@ export default function TopNav({ userName }: { userName?: string }) {
             className="absolute left-1 top-1 bottom-1 w-28 rounded-full bg-[color:var(--acn-purple)] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
             style={{ transform: `translateX(${activeIndex * 100}%)` }}
           />
-          {NAV_ITEMS.map((item, i) => (
+          {items.map((item, i) => (
             <PillLink key={item.href} href={item.href} active={i === activeIndex}>
               {item.label}
             </PillLink>

@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({ prisma: { user: { findUnique } } }));
 vi.mock("@/lib/auth", () => ({
   verifyPassword: vi.fn().mockResolvedValue(true),
   signToken: vi.fn().mockResolvedValue("token"),
+  sessionCookie: { path: "/" },
 }));
 
 import { GET } from "@/app/api/resources/[id]/route";

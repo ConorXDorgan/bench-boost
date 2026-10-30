@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { getAdminSession } from "@/lib/auth";
 import { IngestError, ingestExcelBuffer } from "@/lib/excel/parse";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export async function POST(req: Request) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "Admins only" }, { status: 403 });
+  }
+
   let form: FormData;
   try {
     form = await req.formData();
