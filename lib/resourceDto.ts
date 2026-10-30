@@ -41,3 +41,13 @@ export interface SnapshotDto {
   ingestedAt: string;
   resources: ResourceListDto[];
 }
+
+export const MAX_NOTE_CHARS = 2000;
+
+export interface NoteDto {
+  id: string;
+  eid: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+}

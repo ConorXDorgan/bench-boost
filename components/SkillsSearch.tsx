@@ -28,6 +28,7 @@ type MinLevel = "any" | SkillLevel;
 
 interface Props {
   snapshot: SnapshotDto;
+  isAdmin: boolean;
 }
 
 /* The minimum-proficiency floor uses the same rank ordering as SKILL_LEVEL_RANK.
@@ -48,7 +49,7 @@ function meetsMinLevel(skillLevel: SkillLevel | null, minRank: number): boolean 
   return SKILL_LEVEL_RANK[skillLevel] >= minRank;
 }
 
-export default function SkillsSearch({ snapshot }: Props) {
+export default function SkillsSearch({ snapshot, isAdmin }: Props) {
   const [skillQuery, setSkillQuery] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [minLevel, setMinLevel] = useState<MinLevel>("any");
@@ -213,7 +214,11 @@ export default function SkillsSearch({ snapshot }: Props) {
         </div>
       </main>
 
-      <ResourceDetailDialog resource={selected} onClose={() => setSelected(null)} />
+      <ResourceDetailDialog
+        resource={selected}
+        onClose={() => setSelected(null)}
+        showNotes={isAdmin}
+      />
     </div>
   );
 }
