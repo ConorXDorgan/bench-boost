@@ -5,6 +5,7 @@ export interface ResourceListDto {
   managementLevel: string | null;
   jobFamily: string | null;
   jobFamilyGroup: string | null;
+  orgUnitL3: string | null;
   orgUnitL4: string | null;
   location: string | null;
   country: string | null;
