@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import type { ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
+import type { NoteDto, ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
 import {
   BUCKET_DOT,
   BUCKET_LABEL,
@@ -60,9 +60,10 @@ function ChartsSkeleton() {
 interface Props {
   snapshot: SnapshotDto;
   isAdmin: boolean;
+  latestNotes: Record<string, NoteDto>;
 }
 
-export default function Dashboard({ snapshot, isAdmin }: Props) {
+export default function Dashboard({ snapshot, isAdmin, latestNotes }: Props) {
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>([...BUCKETS]);
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [jobFamilyFilter, setJobFamilyFilter] = useState<string[]>([]);
@@ -70,10 +71,16 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ResourceListDto | null>(null);
   const [showCharts, setShowCharts] = useState(true);
+  const [noteOverrides, setNoteOverrides] = useState<Record<string, NoteDto | null>>({});
   const [sorting, setSorting] = useState<SortingState>([
     { id: "bucket", desc: false },
     { id: "fullName", desc: false },
   ]);
+
+  const notesByEid = useMemo<Record<string, NoteDto | null>>(
+    () => ({ ...latestNotes, ...noteOverrides }),
+    [latestNotes, noteOverrides],
+  );
 
   const deferredSearch = useDeferredValue(search);
   const deferredBucket = useDeferredValue(bucketFilter);
@@ -273,8 +280,18 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
         enableSorting: false,
         cell: ({ row }) => <KeySkillsCell raw={row.original.skills} />,
       },
+      ...(isAdmin
+        ? [
+            {
+              id: "latestNote",
+              header: "Latest Note",
+              enableSorting: false,
+              cell: ({ row }) => <LatestNoteCell note={notesByEid[row.original.eid] ?? null} />,
+            } satisfies ColumnDef<ResourceListDto>,
+          ]
+        : []),
     ],
-    [],
+    [isAdmin, notesByEid],
   );
 
   const table = useReactTable({
@@ -305,7 +322,9 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
           </div>
           <div className="flex items-start gap-2">
             <button
-              onClick={() => downloadCsv(filtered, snapshot.snapshotDate)}
+              onClick={() =>
+                downloadCsv(filtered, snapshot.snapshotDate, isAdmin ? notesByEid : null)
+              }
               className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black shadow-sm transition hover:border-black hover:bg-black hover:text-white"
             >
               Export CSV
@@ -590,6 +609,8 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
       <ResourceDetailDialog
         resource={selected}
         onClose={() => setSelected(null)}
+        showNotes={isAdmin}
+        onNoteChange={(eid, latest) => setNoteOverrides((prev) => ({ ...prev, [eid]: latest }))}
       />
     </div>
   );
@@ -699,6 +720,18 @@ function KeySkillsCell({ raw }: { raw: string | null }) {
   );
 }
 
+function LatestNoteCell({ note }: { note: NoteDto | null }) {
+  if (!note) return <span className="text-neutral-400">—</span>;
+  return (
+    <span
+      className="line-clamp-2 block max-w-56 text-xs text-neutral-700"
+      title={`${note.body}\n— ${note.authorName}, ${fmtDate(note.createdAt)}`}
+    >
+      {note.body}
+    </span>
+  );
+}
+
 function EmptyState({ onClear, hasFilters }: { onClear: () => void; hasFilters: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2 text-neutral-500">
@@ -722,7 +755,11 @@ function EmptyState({ onClear, hasFilters }: { onClear: () => void; hasFilters: 
   );
 }
 
-function downloadCsv(rows: ResourceListDto[], snapshotDate: string) {
+function downloadCsv(
+  rows: ResourceListDto[],
+  snapshotDate: string,
+  notesByEid: Record<string, NoteDto | null> | null,
+) {
   const cols: Array<{ key: keyof ResourceListDto; header: string }> = [
     { key: "fullName", header: "Name" },
     { key: "eid", header: "EID" },
@@ -746,9 +783,13 @@ function downloadCsv(rows: ResourceListDto[], snapshotDate: string) {
     const s = String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const lines = [cols.map((c) => c.header).join(",")];
+  const headers = cols.map((c) => c.header);
+  if (notesByEid) headers.push("Latest Note");
+  const lines = [headers.join(",")];
   for (const row of rows) {
-    lines.push(cols.map((c) => escape(row[c.key])).join(","));
+    const cells = cols.map((c) => escape(row[c.key]));
+    if (notesByEid) cells.push(escape(notesByEid[row.eid]?.body));
+    lines.push(cells.join(","));
   }
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

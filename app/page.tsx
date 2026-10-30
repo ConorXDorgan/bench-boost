@@ -1,5 +1,6 @@
 import Dashboard from "@/components/Dashboard";
 import { getAdminSession } from "@/lib/auth";
+import { latestNotesByEid } from "@/lib/notes";
 import { loadLatestSnapshot } from "@/lib/snapshotLoader";
 
 export default async function Page() {
@@ -28,5 +29,6 @@ export default async function Page() {
     );
   }
 
-  return <Dashboard snapshot={snapshot} isAdmin={!!admin} />;
+  const latestNotes = admin ? await latestNotesByEid() : {};
+  return <Dashboard snapshot={snapshot} isAdmin={!!admin} latestNotes={latestNotes} />;
 }
