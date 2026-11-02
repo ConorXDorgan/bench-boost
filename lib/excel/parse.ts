@@ -87,6 +87,7 @@ interface ParseRow {
     managementLevel: string | null;
     jobFamily: string | null;
     jobFamilyGroup: string | null;
+    orgUnitL3: string | null;
     orgUnitL4: string | null;
     location: string | null;
     country: string | null;
@@ -201,6 +202,7 @@ export async function parseWorkbook(buffer: ArrayBuffer | Buffer): Promise<Parse
         managementLevel: txt(row, "managementLevel"),
         jobFamily: txt(row, "jobFamily"),
         jobFamilyGroup: txt(row, "jobFamilyGroup"),
+        orgUnitL3: txt(row, "orgUnitL3"),
         orgUnitL4: txt(row, "orgUnitL4"),
         location: txt(row, "location"),
         country: txt(row, "country"),

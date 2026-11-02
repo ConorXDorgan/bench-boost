@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
+import NotesPanel from "@/components/NotesPanel";
 import { SkillBubbles, SkillLegend } from "@/components/SkillBubbles";
 import {
   BUCKET_DOT,
@@ -12,13 +13,16 @@ import {
   fmtDate,
   fmtText,
 } from "@/lib/format";
-import type { ResourceDetailDto, ResourceListDto } from "@/lib/resourceDto";
+import type { NoteDto, ResourceDetailDto, ResourceListDto } from "@/lib/resourceDto";
 
 interface Props {
   /** The currently-selected resource, or null when the dialog should be closed. */
   resource: ResourceListDto | null;
   /** Called whenever the dialog closes — Esc, backdrop click, or X button. */
   onClose: () => void;
+  /** Admins only: shows the notes thread and reports the newest note after edits. */
+  showNotes?: boolean;
+  onNoteChange?: (eid: string, latest: NoteDto | null) => void;
 }
 
 /**
@@ -33,7 +37,12 @@ interface Props {
  * so there are no JS timers, no closing-state machine, and no race
  * conditions between mount/unmount and animation completion.
  */
-export default function ResourceDetailDialog({ resource, onClose }: Props) {
+export default function ResourceDetailDialog({
+  resource,
+  onClose,
+  showNotes = false,
+  onNoteChange,
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // Keep the most-recent non-null resource cached so the modal contents
   // stay visible during the close transition (resource prop will be null
@@ -110,6 +119,8 @@ export default function ResourceDetailDialog({ resource, onClose }: Props) {
           detail={details[shownResource.id] ?? null}
           failed={failedId === shownResource.id}
           onClose={() => dialogRef.current?.close()}
+          showNotes={showNotes}
+          onNoteChange={onNoteChange}
         />
       )}
     </dialog>
@@ -123,11 +134,15 @@ function DialogContent({
   detail,
   failed,
   onClose,
+  showNotes,
+  onNoteChange,
 }: {
   resource: ResourceListDto;
   detail: ResourceDetailDto | null;
   failed: boolean;
   onClose: () => void;
+  showNotes: boolean;
+  onNoteChange?: (eid: string, latest: NoteDto | null) => void;
 }) {
   const pillCls = resource.unknown
     ? BUCKET_PILL_UNKNOWN
@@ -216,6 +231,12 @@ function DialogContent({
               </div>
             </Section>
           </div>
+
+          {showNotes && (
+            <Section title="Notes">
+              <NotesPanel eid={resource.eid} onLatestChange={(eid, latest) => onNoteChange?.(eid, latest)} />
+            </Section>
+          )}
 
           <Section title="Links">
             <LinksRow detail={detail} failed={failed} />

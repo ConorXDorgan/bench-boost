@@ -5,6 +5,7 @@ export interface ResourceListDto {
   managementLevel: string | null;
   jobFamily: string | null;
   jobFamilyGroup: string | null;
+  orgUnitL3: string | null;
   orgUnitL4: string | null;
   location: string | null;
   country: string | null;
@@ -40,4 +41,14 @@ export interface SnapshotDto {
   snapshotDate: string;
   ingestedAt: string;
   resources: ResourceListDto[];
+}
+
+export const MAX_NOTE_CHARS = 2000;
+
+export interface NoteDto {
+  id: string;
+  eid: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
 }

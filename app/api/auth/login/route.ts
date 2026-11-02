@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword, signToken } from "@/lib/auth";
+import { verifyPassword, signToken, sessionCookie } from "@/lib/auth";
 import { COOKIE_NAME } from "@/lib/authToken";
-
-const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -18,15 +16,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
-  const token = await signToken({ userId: user.id, email: user.email, name: user.name });
+  const token = await signToken({ role: "admin", userId: user.id, email: user.email, name: user.name });
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SEVEN_DAYS,
-    path: "/",
-  });
+  res.cookies.set(COOKIE_NAME, token, sessionCookie);
   return res;
 }

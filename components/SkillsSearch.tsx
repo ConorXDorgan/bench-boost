@@ -4,6 +4,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
 import BucketCheckboxes from "@/components/BucketCheckboxes";
+import BusinessUnitToggle, { useBusinessUnit } from "@/components/BusinessUnitToggle";
 import ResourceDetailDialog from "@/components/ResourceDetailDialog";
 import {
   BUCKET_DOT,
@@ -28,6 +29,7 @@ type MinLevel = "any" | SkillLevel;
 
 interface Props {
   snapshot: SnapshotDto;
+  isAdmin: boolean;
 }
 
 /* The minimum-proficiency floor uses the same rank ordering as SKILL_LEVEL_RANK.
@@ -48,7 +50,10 @@ function meetsMinLevel(skillLevel: SkillLevel | null, minRank: number): boolean 
   return SKILL_LEVEL_RANK[skillLevel] >= minRank;
 }
 
-export default function SkillsSearch({ snapshot }: Props) {
+export default function SkillsSearch({ snapshot, isAdmin }: Props) {
+  const { businessUnits, businessUnit, setBusinessUnit, resources } = useBusinessUnit(
+    snapshot.resources,
+  );
   const [skillQuery, setSkillQuery] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [minLevel, setMinLevel] = useState<MinLevel>("any");
@@ -70,7 +75,7 @@ export default function SkillsSearch({ snapshot }: Props) {
    */
   const employeeLevelOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const r of snapshot.resources) {
+    for (const r of resources) {
       const raw = r.managementLevel?.trim();
       if (raw) set.add(raw);
     }
@@ -82,7 +87,7 @@ export default function SkillsSearch({ snapshot }: Props) {
       if (nb != null) return -1;
       return a.localeCompare(b);
     });
-  }, [snapshot.resources]);
+  }, [resources]);
 
   /**
    * Pre-compute, for each resource, the set of skill names they have at or
@@ -91,7 +96,7 @@ export default function SkillsSearch({ snapshot }: Props) {
    */
   const resourceSkillIndex = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const r of snapshot.resources) {
+    for (const r of resources) {
       const set = new Set<string>();
       for (const s of parseSkillString(r.skills)) {
         if (!meetsMinLevel(s.level, minRank)) continue;
@@ -100,7 +105,7 @@ export default function SkillsSearch({ snapshot }: Props) {
       map.set(r.id, set);
     }
     return map;
-  }, [snapshot.resources, minRank]);
+  }, [resources, minRank]);
 
   /** Aggregate count per skill (post-min-level filter). */
   const skillCounts = useMemo(() => {
@@ -131,7 +136,7 @@ export default function SkillsSearch({ snapshot }: Props) {
   /** Resources that satisfy: bucket + employee level + every selected skill (AND) or any (OR). */
   const matchedResources = useMemo(() => {
     const levelSet = new Set(employeeLevels);
-    return snapshot.resources.filter((r) => {
+    return resources.filter((r) => {
       if (!deferredBucket.includes(r.bucket)) return false;
       if (levelSet.size > 0 && !levelSet.has(r.managementLevel ?? "")) return false;
       if (deferredSelectedSkills.length === 0) return false;
@@ -142,7 +147,7 @@ export default function SkillsSearch({ snapshot }: Props) {
       return deferredSelectedSkills.some((s) => skills.has(s));
     });
   }, [
-    snapshot.resources,
+    resources,
     deferredBucket,
     employeeLevels,
     deferredSelectedSkills,
@@ -177,6 +182,15 @@ export default function SkillsSearch({ snapshot }: Props) {
             current snapshot, see how many people hold each, and combine skills to find
             the right candidates.
           </p>
+          {businessUnits.length > 1 && (
+            <div className="mt-5">
+              <BusinessUnitToggle
+                businessUnits={businessUnits}
+                value={businessUnit}
+                onChange={setBusinessUnit}
+              />
+            </div>
+          )}
         </section>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -207,13 +221,17 @@ export default function SkillsSearch({ snapshot }: Props) {
             employeeLevelOptions={employeeLevelOptions}
             onEmployeeLevelsChange={setEmployeeLevels}
             matchedResources={matchedResources}
-            totalResourceCount={snapshot.resources.length}
+            totalResourceCount={resources.length}
             onSelectResource={setSelected}
           />
         </div>
       </main>
 
-      <ResourceDetailDialog resource={selected} onClose={() => setSelected(null)} />
+      <ResourceDetailDialog
+        resource={selected}
+        onClose={() => setSelected(null)}
+        showNotes={isAdmin}
+      />
     </div>
   );
 }

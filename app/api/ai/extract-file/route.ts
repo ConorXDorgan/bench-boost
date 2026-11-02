@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAdminSession } from "@/lib/auth";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
@@ -8,6 +9,10 @@ const MAX_TEXT_CHARS = 50_000;
 type ExtractedKind = "pdf" | "docx" | "text";
 
 export async function POST(req: Request) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "Admins only" }, { status: 403 });
+  }
+
   let form: FormData;
   try {
     form = await req.formData();

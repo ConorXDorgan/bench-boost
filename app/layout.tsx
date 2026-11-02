@@ -23,7 +23,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={`${graphikFallback.variable} h-full antialiased`}>
       <body className="min-h-full bg-[color:var(--acn-bg)] text-[color:var(--acn-ink)]">
-        <TopNav userName={session?.name} />
+        <TopNav userName={session?.name} isAdmin={session?.role === "admin"} />
         <RouteTransition>{children}</RouteTransition>
       </body>
     </html>

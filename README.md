@@ -43,7 +43,9 @@ Pushing to `main` runs `.github/workflows/main_bench-boost.yml`: install, `prism
 
 ## Users
 
-There is no self-service signup. Test users are created with the SSH script on the App Service (it inserts a `User` row with a bcrypt-hashed password); emails are stored lowercase. SSO is planned to replace password login.
+There is no self-service signup. Every `User` account is an admin: admins can upload, use the AI assistant, add notes and open `/admin`. Admin accounts are created with the SSH script on the App Service (it inserts a `User` row with a bcrypt-hashed password); emails are stored lowercase. SSO is planned to replace password login.
+
+Viewers sign in with a shared password set on `/admin` and can only see the bench and skills pages. Changing or disabling the password signs out existing viewers within about 30 seconds. Viewer access is off until an admin sets a password.
 
 ## Layout
 
