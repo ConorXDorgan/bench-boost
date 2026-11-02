@@ -3,6 +3,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
+import BucketCheckboxes from "@/components/BucketCheckboxes";
 import ResourceDetailDialog from "@/components/ResourceDetailDialog";
 import {
   BUCKET_DOT,
@@ -12,6 +13,7 @@ import {
   fmtDate,
   fmtText,
   parseManagementLevel,
+  BUCKETS,
   type BucketFilter,
 } from "@/lib/format";
 import type { ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
@@ -51,7 +53,7 @@ export default function SkillsSearch({ snapshot }: Props) {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [minLevel, setMinLevel] = useState<MinLevel>("any");
   const [matchMode, setMatchMode] = useState<MatchMode>("all");
-  const [bucketFilter, setBucketFilter] = useState<BucketFilter>("all");
+  const [bucketFilter, setBucketFilter] = useState<BucketFilter>([...BUCKETS]);
   const [employeeLevels, setEmployeeLevels] = useState<string[]>([]);
   const [selected, setSelected] = useState<ResourceListDto | null>(null);
 
@@ -130,7 +132,7 @@ export default function SkillsSearch({ snapshot }: Props) {
   const matchedResources = useMemo(() => {
     const levelSet = new Set(employeeLevels);
     return snapshot.resources.filter((r) => {
-      if (deferredBucket !== "all" && r.bucket !== deferredBucket) return false;
+      if (!deferredBucket.includes(r.bucket)) return false;
       if (levelSet.size > 0 && !levelSet.has(r.managementLevel ?? "")) return false;
       if (deferredSelectedSkills.length === 0) return false;
       const skills = resourceSkillIndex.get(r.id) ?? new Set<string>();
@@ -455,21 +457,7 @@ function PeopleResults({
           ))}
         </div>
         <span className="mx-1 h-4 w-px bg-neutral-200" />
-        <div className="relative">
-          <select
-            value={bucketFilter}
-            onChange={(e) => onBucketChange(e.target.value as BucketFilter)}
-            className="appearance-none rounded-full border border-neutral-200 bg-white py-1.5 pl-3 pr-8 text-xs text-black shadow-sm hover:border-black/40"
-          >
-            <option value="all">All buckets</option>
-            <option value="available">Available</option>
-            <option value="coming">Coming available</option>
-            <option value="not_available">Not available</option>
-          </select>
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
-            ▾
-          </span>
-        </div>
+        <BucketCheckboxes selected={bucketFilter} onChange={onBucketChange} size="sm" />
         <MultiSelect
           label="Level"
           size="sm"

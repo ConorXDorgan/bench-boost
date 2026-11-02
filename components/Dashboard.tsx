@@ -16,6 +16,7 @@ import {
   BUCKET_LABEL,
   BUCKET_PILL,
   BUCKET_PILL_UNKNOWN,
+  BUCKETS,
   LEVEL_PILL_BY_NUM,
   LEVEL_PILL_DEFAULT,
   type BucketFilter,
@@ -26,11 +27,13 @@ import {
   formatLevelTitle,
   formatStatus,
   parseManagementLevel,
+  toggleBucket,
 } from "@/lib/format";
 import { parseSkillString, sortSkillsByLevel } from "@/lib/skills";
 import UploadButton from "@/components/UploadButton";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
+import BucketCheckboxes from "@/components/BucketCheckboxes";
 import ResourceDetailDialog from "@/components/ResourceDetailDialog";
 
 const Charts = dynamic(() => import("@/components/Charts"), {
@@ -59,7 +62,7 @@ interface Props {
 }
 
 export default function Dashboard({ snapshot }: Props) {
-  const [bucketFilter, setBucketFilter] = useState<BucketFilter>("all");
+  const [bucketFilter, setBucketFilter] = useState<BucketFilter>([...BUCKETS]);
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [jobFamilyFilter, setJobFamilyFilter] = useState<string[]>([]);
   const [orgUnitFilter, setOrgUnitFilter] = useState<string[]>([]);
@@ -106,7 +109,7 @@ export default function Dashboard({ snapshot }: Props) {
   const filteredIgnoringLevel = useMemo(() => {
     const needle = deferredSearch.trim().toLowerCase();
     return snapshot.resources.filter((r) => {
-      if (deferredBucket !== "all" && r.bucket !== deferredBucket) return false;
+      if (!deferredBucket.includes(r.bucket)) return false;
       if (jobFamilyFilter.length > 0 && !jobFamilyFilter.includes(r.jobFamily ?? "")) return false;
       if (orgUnitFilter.length > 0 && !orgUnitFilter.includes(r.orgUnitL4 ?? "")) return false;
       if (needle && !r.fullName.toLowerCase().includes(needle)) return false;
@@ -154,15 +157,16 @@ export default function Dashboard({ snapshot }: Props) {
     return filteredIgnoringLevel.filter((r) => r.managementLevel === deferredLevel);
   }, [filteredIgnoringLevel, deferredLevel]);
 
+  const allBuckets = bucketFilter.length === BUCKETS.length;
   const activeFilterCount =
-    (bucketFilter !== "all" ? 1 : 0) +
+    (allBuckets ? 0 : 1) +
     (levelFilter !== "all" ? 1 : 0) +
     (jobFamilyFilter.length > 0 ? 1 : 0) +
     (orgUnitFilter.length > 0 ? 1 : 0) +
     (search.trim().length > 0 ? 1 : 0);
 
   const clearAllFilters = () => {
-    setBucketFilter("all");
+    setBucketFilter([...BUCKETS]);
     setLevelFilter("all");
     setJobFamilyFilter([]);
     setOrgUnitFilter([]);
@@ -246,7 +250,7 @@ export default function Dashboard({ snapshot }: Props) {
       },
       {
         accessorKey: "currentProjectEnd",
-        header: "Available From",
+        header: "Available Date",
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-neutral-700">
             {fmtShortDate(row.original.currentProjectEnd)}
@@ -312,20 +316,21 @@ export default function Dashboard({ snapshot }: Props) {
 
         {/* ---------- Stat cards ---------- */}
         <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {(["available", "coming", "not_available"] as const).map((b) => {
-            const active = bucketFilter === b;
+          {BUCKETS.map((b) => {
+            const included = bucketFilter.includes(b);
+            const active = !allBuckets && included;
             const count = allCounts[b];
             const pct = total > 0 ? Math.round((count / total) * 100) : 0;
             return (
               <button
                 key={b}
-                onClick={() => setBucketFilter(active ? "all" : b)}
+                onClick={() => setBucketFilter(allBuckets ? [b] : toggleBucket(bucketFilter, b))}
                 aria-pressed={active}
                 className={`group relative overflow-hidden rounded-xl border bg-white p-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition ${
                   active
                     ? "border-black ring-2 ring-[color:var(--acn-purple)]/15"
                     : "border-neutral-200 hover:border-black/40 hover:shadow-[0_8px_24px_rgba(161,0,255,0.07)]"
-                }`}
+                } ${allBuckets || included ? "" : "opacity-60"}`}
               >
                 <span
                   className={`absolute left-0 top-0 h-full w-1 transition ${
@@ -357,7 +362,7 @@ export default function Dashboard({ snapshot }: Props) {
                   />
                 </div>
                 <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-neutral-500 transition group-hover:text-[color:var(--acn-purple)]">
-                  {active ? "Showing only this bucket" : "Filter to this bucket"}
+                  {allBuckets ? "Filter to this bucket" : included ? "Shown, click to hide" : "Hidden, click to show"}
                   <span aria-hidden="true">›</span>
                 </p>
               </button>
@@ -447,21 +452,7 @@ export default function Dashboard({ snapshot }: Props) {
               selected={orgUnitFilter}
               onChange={setOrgUnitFilter}
             />
-            <div className="relative">
-              <select
-                value={bucketFilter}
-                onChange={(e) => setBucketFilter(e.target.value as BucketFilter)}
-                className="appearance-none rounded-full border border-neutral-200 bg-white py-2 pl-4 pr-9 text-sm text-black shadow-sm hover:border-black/40"
-              >
-                <option value="all">All buckets</option>
-                <option value="available">Available</option>
-                <option value="coming">Coming Available</option>
-                <option value="not_available">Not Available</option>
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                ▾
-              </span>
-            </div>
+            <BucketCheckboxes selected={bucketFilter} onChange={setBucketFilter} />
             {activeFilterCount > 0 && (
               <button
                 type="button"
@@ -746,7 +737,7 @@ function downloadCsv(rows: ResourceListDto[], snapshotDate: string) {
     { key: "weeksOut", header: "Weeks Out" },
     { key: "allocationPct", header: "Allocation %" },
     { key: "currentProject", header: "Current Project" },
-    { key: "currentProjectEnd", header: "Project End" },
+    { key: "currentProjectEnd", header: "Available Date" },
     { key: "skills", header: "Skills" },
   ];
   const escape = (v: unknown) => {

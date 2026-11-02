@@ -1,6 +1,14 @@
 import type { Bucket } from "@/lib/excel/availability";
 
-export type BucketFilter = "all" | Bucket;
+export const BUCKETS: readonly Bucket[] = ["available", "coming", "not_available"];
+
+export type BucketFilter = Bucket[];
+
+export function toggleBucket(selected: BucketFilter, b: Bucket): BucketFilter {
+  return selected.includes(b)
+    ? selected.filter((x) => x !== b)
+    : BUCKETS.filter((x) => x === b || selected.includes(x));
+}
 
 export function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return "—";
