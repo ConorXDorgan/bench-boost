@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Spinner from "@/components/Spinner";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Bench", match: (p: string) => p === "/", adminOnly: false },
-  { href: "/skills", label: "Skills", match: (p: string) => p.startsWith("/skills"), adminOnly: false },
-  { href: "/ai", label: "AI Assistant", match: (p: string) => p.startsWith("/ai"), adminOnly: true },
-  { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin"), adminOnly: true },
+  { href: "/", label: "Bench", match: (p: string) => p === "/", adminOnly: false, keepsBu: true },
+  { href: "/skills", label: "Skills", match: (p: string) => p.startsWith("/skills"), adminOnly: false, keepsBu: true },
+  { href: "/ai", label: "AI Assistant", match: (p: string) => p.startsWith("/ai"), adminOnly: true, keepsBu: false },
+  { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin"), adminOnly: true, keepsBu: false },
 ] as const;
 
 export default function TopNav({
@@ -20,6 +20,7 @@ export default function TopNav({
   isAdmin: boolean;
 }) {
   const pathname = usePathname() ?? "/";
+  const bu = useSearchParams().get("bu");
   const items = NAV_ITEMS.filter((item) => isAdmin || !item.adminOnly);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -64,7 +65,11 @@ export default function TopNav({
             style={{ transform: `translateX(${activeIndex * 100}%)` }}
           />
           {items.map((item, i) => (
-            <PillLink key={item.href} href={item.href} active={i === activeIndex}>
+            <PillLink
+              key={item.href}
+              href={bu && item.keepsBu ? `${item.href}?bu=${encodeURIComponent(bu)}` : item.href}
+              active={i === activeIndex}
+            >
               {item.label}
             </PillLink>
           ))}

@@ -31,6 +31,7 @@ export const FIELD_ALIASES = {
   managementLevel: ["Resource Management Level"],
   jobFamily: ["Resource Job Family"],
   jobFamilyGroup: ["Resource Job Family Group"],
+  orgUnitL3: ["Resource Org Unit Level 3"],
   orgUnitL4: ["Resource Org Unit Level 4"],
   location: ["Resource Location"],
   country: ["Resource Country/Territory"],

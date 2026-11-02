@@ -34,4 +34,9 @@ describe("parseWorkbook + deriveAvailability against the real sample", () => {
     expect(counts.not_available).toBe(530);
     expect(unknownCount).toBe(0);
   });
+
+  it("reads Org Unit Level 3 as the business unit", async () => {
+    const { rows } = await parseWorkbook(await readFile(SAMPLE));
+    expect(new Set(rows.map((r) => r.fields.orgUnitL3))).toEqual(new Set(["Technology"]));
+  });
 });

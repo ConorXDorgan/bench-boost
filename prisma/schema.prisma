@@ -62,6 +62,7 @@ model Resource {
   managementLevel String?
   jobFamily       String?
   jobFamilyGroup  String?
+  orgUnitL3       String?
   orgUnitL4       String?
   location        String?
   country         String?
