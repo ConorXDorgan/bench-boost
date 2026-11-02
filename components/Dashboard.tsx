@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import type { ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
+import type { NoteDto, ResourceListDto, SnapshotDto } from "@/lib/resourceDto";
 import {
   BUCKET_DOT,
   BUCKET_LABEL,
@@ -34,6 +34,7 @@ import UploadButton from "@/components/UploadButton";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
 import BucketCheckboxes from "@/components/BucketCheckboxes";
+import BusinessUnitToggle, { useBusinessUnit } from "@/components/BusinessUnitToggle";
 import ResourceDetailDialog from "@/components/ResourceDetailDialog";
 
 const Charts = dynamic(() => import("@/components/Charts"), {
@@ -60,9 +61,13 @@ function ChartsSkeleton() {
 interface Props {
   snapshot: SnapshotDto;
   isAdmin: boolean;
+  latestNotes: Record<string, NoteDto>;
 }
 
-export default function Dashboard({ snapshot, isAdmin }: Props) {
+export default function Dashboard({ snapshot, isAdmin, latestNotes }: Props) {
+  const { businessUnits, businessUnit, setBusinessUnit, resources } = useBusinessUnit(
+    snapshot.resources,
+  );
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>([...BUCKETS]);
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [jobFamilyFilter, setJobFamilyFilter] = useState<string[]>([]);
@@ -70,34 +75,40 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ResourceListDto | null>(null);
   const [showCharts, setShowCharts] = useState(true);
+  const [noteOverrides, setNoteOverrides] = useState<Record<string, NoteDto | null>>({});
   const [sorting, setSorting] = useState<SortingState>([
     { id: "bucket", desc: false },
     { id: "fullName", desc: false },
   ]);
+
+  const notesByEid = useMemo<Record<string, NoteDto | null>>(
+    () => ({ ...latestNotes, ...noteOverrides }),
+    [latestNotes, noteOverrides],
+  );
 
   const deferredSearch = useDeferredValue(search);
   const deferredBucket = useDeferredValue(bucketFilter);
   const deferredLevel = useDeferredValue(levelFilter);
 
   const allCounts = useMemo(() => {
-    return snapshot.resources.reduce(
+    return resources.reduce(
       (acc, r) => {
         acc[r.bucket]++;
         return acc;
       },
       { available: 0, coming: 0, not_available: 0 } as Record<ResourceListDto["bucket"], number>,
     );
-  }, [snapshot.resources]);
+  }, [resources]);
 
-  const total = snapshot.resources.length;
+  const total = resources.length;
 
   const jobFamilyOptions = useMemo(
-    () => uniqueSorted(snapshot.resources.map((r) => r.jobFamily)),
-    [snapshot.resources],
+    () => uniqueSorted(resources.map((r) => r.jobFamily)),
+    [resources],
   );
   const orgUnitOptions = useMemo(
-    () => uniqueSorted(snapshot.resources.map((r) => r.orgUnitL4)),
-    [snapshot.resources],
+    () => uniqueSorted(resources.map((r) => r.orgUnitL4)),
+    [resources],
   );
 
   /**
@@ -109,14 +120,14 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
    */
   const filteredIgnoringLevel = useMemo(() => {
     const needle = deferredSearch.trim().toLowerCase();
-    return snapshot.resources.filter((r) => {
+    return resources.filter((r) => {
       if (!deferredBucket.includes(r.bucket)) return false;
       if (jobFamilyFilter.length > 0 && !jobFamilyFilter.includes(r.jobFamily ?? "")) return false;
       if (orgUnitFilter.length > 0 && !orgUnitFilter.includes(r.orgUnitL4 ?? "")) return false;
       if (needle && !r.fullName.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [snapshot.resources, deferredBucket, jobFamilyFilter, orgUnitFilter, deferredSearch]);
+  }, [resources, deferredBucket, jobFamilyFilter, orgUnitFilter, deferredSearch]);
 
   /**
    * Distinct management levels in the snapshot with their CURRENT counts
@@ -128,7 +139,7 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
   const levelOptions = useMemo(() => {
     const order: Array<{ raw: string; num: number | null; title: string; displayTitle: string }> = [];
     const seen = new Set<string>();
-    for (const r of snapshot.resources) {
+    for (const r of resources) {
       const raw = r.managementLevel?.trim();
       if (!raw || seen.has(raw)) continue;
       seen.add(raw);
@@ -151,7 +162,7 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
         if (a.num != null && b.num != null) return a.num - b.num;
         return a.displayTitle.localeCompare(b.displayTitle);
       });
-  }, [snapshot.resources, filteredIgnoringLevel]);
+  }, [resources, filteredIgnoringLevel]);
 
   const filtered = useMemo(() => {
     if (deferredLevel === "all") return filteredIgnoringLevel;
@@ -273,8 +284,18 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
         enableSorting: false,
         cell: ({ row }) => <KeySkillsCell raw={row.original.skills} />,
       },
+      ...(isAdmin
+        ? [
+            {
+              id: "latestNote",
+              header: "Latest Note",
+              enableSorting: false,
+              cell: ({ row }) => <LatestNoteCell note={notesByEid[row.original.eid] ?? null} />,
+            } satisfies ColumnDef<ResourceListDto>,
+          ]
+        : []),
     ],
-    [],
+    [isAdmin, notesByEid],
   );
 
   const table = useReactTable({
@@ -305,7 +326,9 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
           </div>
           <div className="flex items-start gap-2">
             <button
-              onClick={() => downloadCsv(filtered, snapshot.snapshotDate)}
+              onClick={() =>
+                downloadCsv(filtered, snapshot.snapshotDate, isAdmin ? notesByEid : null)
+              }
               className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black shadow-sm transition hover:border-black hover:bg-black hover:text-white"
             >
               Export CSV
@@ -314,6 +337,16 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
             {isAdmin && <UploadButton />}
           </div>
         </section>
+
+        {businessUnits.length > 1 && (
+          <div className="mb-4">
+            <BusinessUnitToggle
+              businessUnits={businessUnits}
+              value={businessUnit}
+              onChange={setBusinessUnit}
+            />
+          </div>
+        )}
 
         {/* ---------- Stat cards ---------- */}
         <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -390,7 +423,7 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
             </span>
           </button>
         </section>
-        {showCharts && <Charts resources={snapshot.resources} />}
+        {showCharts && <Charts resources={resources} />}
 
         {/* ---------- Career Level pill row ---------- */}
         <section className="mb-4">
@@ -590,6 +623,8 @@ export default function Dashboard({ snapshot, isAdmin }: Props) {
       <ResourceDetailDialog
         resource={selected}
         onClose={() => setSelected(null)}
+        showNotes={isAdmin}
+        onNoteChange={(eid, latest) => setNoteOverrides((prev) => ({ ...prev, [eid]: latest }))}
       />
     </div>
   );
@@ -699,6 +734,18 @@ function KeySkillsCell({ raw }: { raw: string | null }) {
   );
 }
 
+function LatestNoteCell({ note }: { note: NoteDto | null }) {
+  if (!note) return <span className="text-neutral-400">—</span>;
+  return (
+    <span
+      className="line-clamp-2 block max-w-56 text-xs text-neutral-700"
+      title={`${note.body}\n— ${note.authorName}, ${fmtDate(note.createdAt)}`}
+    >
+      {note.body}
+    </span>
+  );
+}
+
 function EmptyState({ onClear, hasFilters }: { onClear: () => void; hasFilters: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2 text-neutral-500">
@@ -722,7 +769,11 @@ function EmptyState({ onClear, hasFilters }: { onClear: () => void; hasFilters: 
   );
 }
 
-function downloadCsv(rows: ResourceListDto[], snapshotDate: string) {
+function downloadCsv(
+  rows: ResourceListDto[],
+  snapshotDate: string,
+  notesByEid: Record<string, NoteDto | null> | null,
+) {
   const cols: Array<{ key: keyof ResourceListDto; header: string }> = [
     { key: "fullName", header: "Name" },
     { key: "eid", header: "EID" },
@@ -746,9 +797,13 @@ function downloadCsv(rows: ResourceListDto[], snapshotDate: string) {
     const s = String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const lines = [cols.map((c) => c.header).join(",")];
+  const headers = cols.map((c) => c.header);
+  if (notesByEid) headers.push("Latest Note");
+  const lines = [headers.join(",")];
   for (const row of rows) {
-    lines.push(cols.map((c) => escape(row[c.key])).join(","));
+    const cells = cols.map((c) => escape(row[c.key]));
+    if (notesByEid) cells.push(escape(notesByEid[row.eid]?.body));
+    lines.push(cells.join(","));
   }
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

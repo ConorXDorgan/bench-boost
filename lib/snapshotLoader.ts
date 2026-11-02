@@ -57,6 +57,7 @@ async function loadCache(): Promise<CachedSnapshot | null> {
       managementLevel: r.managementLevel,
       jobFamily: r.jobFamily,
       jobFamilyGroup: r.jobFamilyGroup,
+      orgUnitL3: r.orgUnitL3,
       orgUnitL4: r.orgUnitL4,
       location: r.location,
       country: r.country,

@@ -1,8 +1,9 @@
 import SkillsSearch from "@/components/SkillsSearch";
+import { getAdminSession } from "@/lib/auth";
 import { loadLatestSnapshot } from "@/lib/snapshotLoader";
 
 export default async function SkillsPage() {
-  const snapshot = await loadLatestSnapshot();
+  const [snapshot, admin] = await Promise.all([loadLatestSnapshot(), getAdminSession()]);
 
   if (!snapshot) {
     return (
@@ -23,5 +24,5 @@ export default async function SkillsPage() {
     );
   }
 
-  return <SkillsSearch snapshot={snapshot} />;
+  return <SkillsSearch snapshot={snapshot} isAdmin={!!admin} />;
 }
